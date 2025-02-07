@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Node JS</title>
+    <style>
+    html { height: 100%; }
+    body { height: 100%; margin: 0; padding: 0; }
+    .__body__ { padding: 120px 340px 40px 340px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
+    
+    /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
+    @media (max-width: 768px) {
+        .__body__ {
+            padding: 80px 20px; /* 작은 화면에서 패딩 조정 */
+        }
+    }
+    .navbar {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+    .none {
+        display:none;
+    }
+    </style>
+</head>
+<body>
+  <div class="__header__"></div>
+  <div class="__body__">
+    <% if(data) { %>
+    <input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
+    <textarea class="form-control content" style="height:80%;"><%= data[0].content %></textarea>
+    <% } else { %>
+    <input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
+    <textarea class="form-control content" style="height:80%;"></textarea>
+    <% } %>
+    <br>
+    <button class="btn btn-sm btn-primary save">게시글 저장</button>
+  </div>
+</body>
+<script>
+  fetch("/header")
+    .then(response => response.text())
+    .then(data => document.querySelector(".__header__").innerHTML = data);
+
+  $(document).ready(function() {
+    $('.save').click(function(e) {
+      e.preventDefault();
+      var subject = $('.subject').val();
+      var content = $('.content').val();
+
+      `<% if(status=='update'){ %>`
+      $.ajax({
+        url: '/boards/<%=id%>',
+        method: 'PUT',
+        data: { 
+          user_id: '<%=user_id%>',
+          subject: subject, 
+          content: content
+          },
+        success: function(response) {
+          console.log('suc');
+          document.location.href = '/boards/<%=id%>';
+        },
+        error: function(xhr, status, error) {
+          console.log('error');
+        }
+      });
+      `<% } else if(status=='create'){ %>`
+      $.ajax({
+        url: '/boards',
+        method: 'POST',
+        data: { 
+          user_id: '<%=user_id%>',
+          subject: subject, 
+          content: content
+        },
+        success: function(response) {
+          document.location.href = '/boards/'+response.insertId;
+          console.log('suc');
+        },
+        error: function(xhr, status, error) {
+          console.log(xhr, status, error);
+        }
+      });
+      `<% } %>`
+    });
+  });
+</script>
+</html>

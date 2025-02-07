@@ -106,28 +106,26 @@ app.get('/boards/:id', async (req, res) => {
 });
 
 app.get('/boards/:id/edit', (req, res) => {
-  if(req.session.is_logined){
-    const id = req.params.id != 'new' ? req.params.id : '';
-    const user_id = authStatus(req,res).user_id;
-    console.log(user_id)
-    if (id) {
-      db.query(`SELECT * FROM tbl_board where id=?`, [id], function(error, data) {
-        if (error) {
-          res.status(500).send('Internal Server Error');
-          return;
-        }
-        if(data[0].user_id!=user_id) {
-          res.status(500).render('error', { errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
-          return;
-        }
-        res.render('edit', { data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
-      });
-    } else {
-      res.render('edit', { data:'', user_id, status: 'create', authStatus: authStatus(req, res) });
-    }
-  } else {
-    res.status(500).render('error', { errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
+  if(!req.session.is_logined){
+    res.status(500).render('error', { errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.' } );
     return;
+  }
+  const id = req.params.id != 'new' ? req.params.id : '';
+  const user_id = authStatus(req,res).user_id;
+  if (id) {
+    db.query(`SELECT * FROM tbl_board where id=?`, [id], function(error, data) {
+      if (error) {
+        res.status(500).send('Internal Server Error');
+        return;
+      }
+      if(data[0].user_id!=user_id) {
+        res.status(500).render('error', { errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
+        return;
+      }
+      res.render('edit', { data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
+    });
+  } else {
+    res.render('edit', { data:'', user_id, status: 'create', authStatus: authStatus(req, res) });
   }
 });
 
@@ -232,15 +230,6 @@ app.delete('/comments', (req, res) => {
   });
 });
 
-// app.get('/report', (req, res) => {
-//   res.render('report', { authStatus: authStatus(req, res) })
-// });
-
-// app.post('/report_process', (req, res) => {
-//   let post = req.body;
-//   res.render('error', { errorMessage:'신고가 접수되었습니다.', authStatus: authStatus(req, res) } );
-// });
-
 app.get('/login', (req, res) => {
   if( authStatus(req, res) ) {
     res.render('error', { errorMessage:'이미 로그인 됐습니다!' })
@@ -282,7 +271,7 @@ app.get('/signup', (req, res) => {
   res.render('signup', { authStatus: authStatus(req, res) });
 });
 
-app.post('/signup_process', async (req, res) => {
+app.post('/signup', async (req, res) => {
   try {
     let post = req.body;
     const hashedPassword = await hashPassword(post.password);

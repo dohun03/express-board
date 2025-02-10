@@ -28,10 +28,21 @@
     .none {
         display:none;
     }
+    .content {
+      display: flex;
+    }
     textarea {
       width: 100%;
-      height: 60%;
-      resize: none; /* 사용자가 크기 조정 못하도록 */
+      height: 40px;
+      border: none; /* 테두리 제거 */
+      background-color: #f0f0f0; /* 배경색 설정 */
+      border-bottom: 1px solid #bcbdbe; /* 검은색 밑줄 */
+      outline: none; /* 포커스 시 테두리 없애기 */
+      resize: none; /* 크기 조정 불가 */
+      overflow-y: hidden; /* 세로 스크롤을 숨김 */
+    }
+    textarea:hover {
+      border-bottom: 1px solid black;
     }
   </style>
 </head>
@@ -44,10 +55,10 @@
     </div>
     <div style="background-color:white; padding:15px; width:100%; margin-bottom:10px; white-space: pre-line;"><%= data[0].content %></div>
     <br>
-    <button class="btn btn-light <%= user_id?'likes':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= likes.length %></span> 좋아요</button>
+    <button class="btn btn-light <%= user_id?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
     <div class="float-end">
       <!-- <a href="/report?id=<%= id %>" class="<%= data[0].user_id==user_id?'none':'' %>"><button class="btn btn-sm btn-dark report"><i class="fa fa-bullhorn" aria-hidden="true"></i> 신고</button></a> -->
-      <a href="/boards/<%= id %>/edit" class="<%= data[0].user_id!=user_id?'none':'' %>"><button class="btn btn-sm btn-success edit">게시글 수정</button></a>
+      <a href="/boards/<%= id %>/edit" class="<%= data[0].user_id!=user_id?'none':'' %>"><button class="btn btn-sm btn-info edit">게시글 수정</button></a>
       <a class="<%= data[0].user_id!=user_id?'none':'' %>"><button class="btn btn-sm btn-danger delete">게시글 삭제</button></a>
     </div>
     <br><br>
@@ -56,20 +67,23 @@
     <% comment.forEach(item => { %>
       <div class="comment" id="<%= item.id %>" style="margin-top:10px;">
         <div class="info" style="margin-top:10px;">
-          <span user_id="<%= item.user_id %>" style="padding:10px;"><b><%= item.username %></b></span>|
-          <span style="padding:10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
+          <span user_id="<%= item.user_id %>" style="padding-right:10px;"><b><%= item.username %></b></span>|
+          <span style="padding:0 10px 0 10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
+          <% if(authStatus.username==item.username) {%>
+          <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">댓글 수정</button>
+          <% } %>
           <% if(authStatus.username==item.username) {%>
           <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">댓글 삭제</button>
           <% } %>
         </div>
-        <div class="content" style="padding:10px; white-space: pre-line;"><%= item.content %></div>
-        <hr>
+        <div class="content" style="white-space: pre-line; min-height:40px;"><%= item.content %></div>
       </div>
     <% }); %>
     </div>
+    <hr>
     <% if(authStatus) { %>
     <div class="writeComment" style="margin-top:10px; height:300px;">
-      <textarea class="form-control content" placeholder="댓글을 입력하세요"></textarea><br>
+      <textarea class="content" placeholder="댓글을 입력하세요"></textarea><br>
       <button class="btn btn-sm btn-primary saveComment">댓글 저장</button>
     </div>
     <% } else { %> 
@@ -81,7 +95,7 @@
   fetch("/header")
     .then(response => response.text())
     .then(data => document.querySelector(".__header__").innerHTML = data);
-    
+
   $(".btn.delete").click( function(){
     $.ajax({
         url: '/boards/<%=id%>',
@@ -97,15 +111,48 @@
     });
   });
 
+  $(".btn.like").click( function(){
+    let status;
+    if( $(this).hasClass("active") ){
+      status = 'DELETE'
+      $(this).find("span").text( parseInt($(this).find("span").text()) - 1 )
+    } else {
+      status = 'POST'
+      $(this).find("span").text( parseInt($(this).find("span").text()) + 1 )
+    }
+    $(this).toggleClass('active');
+
+    $.ajax({
+      url: '/likes/<%=id%>',
+      method: status,
+      success: function(response) {
+        console.log(response);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert("예기치 못한 에러가 발생 했습니다.")
+      }
+    });
+  });
+
+  $(document).ready(function() {
+    $(".__body__").on("input", "textarea", function() {
+      if ($(this).val().indexOf("\n") === -1) {
+        $(this).height(30);
+      } else {
+        $(this).height('auto');
+        $(this).height(this.scrollHeight);
+      }
+    });
+  });
+
   $(".btn.saveComment").click( function(){
     let content = $(".writeComment .content").val()
     $.ajax({
       url: '/comments',
       method: 'POST',
       data: { 
-        status: 'create',
         board_id: '<%=id%>',
-        user_id: '<%=authStatus.user_id%>',
         parent_id: 0,
         content: content
       },
@@ -133,19 +180,31 @@
     });
   });
 
-  $(".comments").on("click", ".btn.deleteComment", function() {
+  $(".comments").on("click", ".btn.editComment", function() {
+    const commentElement = $(this).closest(".comment");
+    commentElement.children(".info").children(".editComment").text("저장");
+    commentElement.children(".info").children(".editComment").attr("class","btn btn-primary resaveComment");
+    commentElement.children("hr").remove()
+    commentElement.children(".content")
+    commentElement.children(".content").html(`
+      <textarea class="editContent" placeholder="댓글을 입력하세요">${commentElement.children(".content").text()}</textarea>
+    `);
+    $("textarea").trigger("input");
+  });
+
+  $(".comments").on("click", ".btn.resaveComment", function() {
     const commentElement = $(this).closest(".comment");
     const id = commentElement.attr("id");
+    const content = commentElement.children(".content").children("textarea").val();
     $.ajax({
       url: '/comments',
-      method: 'DELETE',
+      method: 'PUT',
       data: { 
-        id: id,
-        user_id: '<%= authStatus.user_id %>'
+        id,
+        content
       },
       success: function(response) {
         console.log(response);
-        commentElement.remove();  // 댓글 요소 삭제
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -154,22 +213,18 @@
     });
   });
 
-  $(".btn.likes").click( function(){
-    let status;
-    if( $(this).hasClass("active") ){
-      status = 'DELETE'
-      $(this).find("span").text( parseInt($(this).find("span").text()) - 1 )
-    } else {
-      status = 'POST'
-      $(this).find("span").text( parseInt($(this).find("span").text()) + 1 )
-    }
-    $(this).toggleClass('active');
-
+  $(".comments").on("click", ".btn.deleteComment", function() {
+    const commentElement = $(this).closest(".comment");
+    const id = commentElement.attr("id");
     $.ajax({
-      url: '/likes/<%=id%>',
-      method: status,
+      url: '/comments',
+      method: 'DELETE',
+      data: { 
+        id
+      },
       success: function(response) {
         console.log(response);
+        commentElement.remove();  // 댓글 요소 삭제
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);

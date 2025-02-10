@@ -2,10 +2,25 @@ const express = require('express');
 const app = express();
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const iconv = require('iconv-lite');
 const session = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
 const hashPassword = require('./lib/bcrypt.js'); // 올바르게 가져오기
+const multer = require('multer');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // 파일 저장 폴더
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const encodedName = iconv.decode(Buffer.from(baseName, 'binary'), 'utf-8');
+    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+    cb(null, Date.now() + "-" + safeFileName + ext);
+  },
+});
+const upload = multer({ storage: storage });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -16,6 +31,22 @@ app.use(session);
 // EJS 템플릿 엔진 설정
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+app.post('/upload', upload.single('userfile'), function (req, res, next) {
+  if (!req.file) {
+    return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
+  }
+
+  let filename = req.file.filename;
+  // db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [post.user_id, post.subject, post.content], function(error, data) {
+  //   if (error) {
+  //     res.status(500).send('Internal Server Error');
+  //     return;
+  //   }
+  //   res.redirect(`/boards/${req.body.id}`)
+  // });
+  res.redirect(`/boards/${req.body.id}`)
+});
 
 function authStatus(req, res) {
   if (req.session.is_logined) {
@@ -49,17 +80,29 @@ app.get('/', (req, res) => {
   }
   params.push(line * (page - 1), line);
 
-  let like = req.cookies.like;
   let order_by = '';
-  switch (like) {
+  let view = req.cookies.view;
+  switch (view) {
     case 'asc':
-      order_by = 'like_count ASC, ';
+      order_by += 'view ASC, ';
       break;
     case 'desc':
-      order_by = 'like_count DESC, ';
+      order_by += 'view DESC, ';
       break;
     default:
-      order_by = '';
+      order_by += '';
+      break;
+  }
+  let like = req.cookies.like;
+  switch (like) {
+    case 'asc':
+      order_by += 'like_count ASC, ';
+      break;
+    case 'desc':
+      order_by += 'like_count DESC, ';
+      break;
+    default:
+      order_by += '';
       break;
   }
   order_by += 'B.id DESC ';
@@ -67,11 +110,15 @@ app.get('/', (req, res) => {
   let sqlQuery = `SELECT B.*, U.username,
     COUNT(*) OVER() AS total, 
     COUNT(DISTINCT L.id) AS like_count, 
-    COUNT(DISTINCT C.id) AS comment_count
+    COUNT(DISTINCT C.id) AS comment_count,
+    MAX(B.view) AS view
   FROM tbl_board B
   LEFT JOIN tbl_like L ON B.id = L.board_id
   LEFT JOIN tbl_comment C ON B.id = C.board_id
   LEFT JOIN tbl_user U ON B.user_id = U.id ${where}GROUP BY B.id ORDER BY ${order_by}LIMIT ?, ?;`;
+
+  console.log('실행 쿼리:', db.format(sqlQuery, params));
+
   db.query(sqlQuery, params, function (error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
@@ -90,7 +137,7 @@ app.get('/', (req, res) => {
       page_total = Math.ceil(parseInt(data[0]['total']) / line);
     }
 
-    res.render('list', { data, page_total, selectOptionsHtml, currentPage: page, search, like, authStatus: authStatus(req, res)});
+    res.render('list', { data, page_total, selectOptionsHtml, currentPage: page, search, like, view, authStatus: authStatus(req, res)});
   });
 });
 
@@ -98,6 +145,7 @@ app.get('/boards/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const user_id = authStatus(req,res).user_id;
+    //이새끼 수정해야됨ㅇㅇ
     const username = authStatus(req,res).username;
 
     // 쿼리 순차 실행 -> 병렬 실행(한번에 실행)
@@ -108,8 +156,8 @@ app.get('/boards/:id', async (req, res) => {
     ]);
 
     if (data && data.length > 0) {
-      let views = data[0].views + 1;
-      await db.promise().query(`UPDATE tbl_board SET views=? WHERE id=?`, [views, id]);
+      let view = data[0].view + 1;
+      await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
       let active = like.some((value) => value.user_id === user_id);
       res.render('view', { data, id, active, like, comment, username, user_id, authStatus: authStatus(req, res) });
     } else {
@@ -216,7 +264,8 @@ app.delete('/likes/:id', (req, res) => {
 
 app.post('/comments', (req, res) => {
   let post = req.body;
-  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [post.board_id, post.user_id, post.content], function(error, data) {
+  const user_id = authStatus(req, res).user_id;
+  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [post.board_id, user_id, post.content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
@@ -235,9 +284,23 @@ app.post('/comments', (req, res) => {
   });
 });
 
+app.put('/comments', (req, res) => {
+  let post = req.body;
+  const user_id = authStatus(req, res).user_id;
+  db.query(`UPDATE tbl_comment SET content=? where id=? and user_id=?`, [post.content, post.id, user_id], function(error, data) {
+    if (error) {
+      res.status(500).send('Internal Server Error');
+      console.log(error)
+      return;
+    }
+    res.send();
+  });
+});
+
 app.delete('/comments', (req, res) => {
   let post = req.body;
-  db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [post.id, post.user_id], function(error, data) {
+  const user_id = authStatus(req, res).user_id;
+  db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [post.id, user_id], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -316,6 +379,9 @@ app.get('/logout', (req, res) => {
 app.post('/cookie', (req, res) => {
   if(req.body.line)
     res.cookie('line', req.body.line, { maxAge: 900000, httpOnly: true });
+
+  if(req.body.view)
+    res.cookie('view', req.body.view, { maxAge: 900000, httpOnly: true });
 
   if(req.body.like)
     res.cookie('like', req.body.like, { maxAge: 900000, httpOnly: true });

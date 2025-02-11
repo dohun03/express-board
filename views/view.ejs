@@ -44,14 +44,31 @@
     textarea:hover {
       border-bottom: 1px solid black;
     }
+    .dropdown {
+      float: right;
+    }
   </style>
 </head>
 <body>
   <div class="__header__"></div>
   <div class="__body__">
     <h3 style="background-color:white; padding:15px; width:100%; margin-bottom:10px; font-weight:bold;"><%= data[0].subject %></h3>
-    <div style="padding:10px;">
-      <b>작성자:</b> <%= username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
+    <div style="padding:10px; height:50px;">
+      <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
+      <% if(data[0].upload) { %>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
+        </button>
+        <ul class="dropdown-menu">
+          <%
+          let uploads = data[0].upload;
+          uploads.forEach(item => { %>
+            <li><a class="dropdown-item" href="<%= `/uploads/${item}` %>" target="_blank"><%= item %></a></li>
+          <% }) %>
+        </ul>
+      </div>
+      <% } %>
     </div>
     <div style="background-color:white; padding:15px; width:100%; margin-bottom:10px; white-space: pre-line;"><%= data[0].content %></div>
     <br>

@@ -41,8 +41,26 @@
   <div class="__body__">
     <div class="info" style="width:100%; margin-bottom: 10px;">
         <a href="/boards/new/edit"><button type="button" class="btn btn-dark" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
-        <button type="button" class="btn btn-light btn-sm" id="write-button"><i class="fa fa-sliders" aria-hidden="true"></i> 조회수</button>
-        <button type="button" class="btn btn-light btn-sm" id="write-button"><i class="fa fa-sliders" aria-hidden="true"></i> 좋아요</button>
+        <button type="button" class="btn btn-light btn-sm view">
+          <!-- switch case문 오류 떠서 if문으로 바꿈. -->
+          <% if (view === 'asc') { %>
+            <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
+          <% } else if (view === 'desc') { %>
+            <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
+          <% } else { %>
+            <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
+          <% } %> 조회수
+        </button>   
+        <button type="button" class="btn btn-light btn-sm like">
+          <!-- switch case문 오류 떠서 if문으로 바꿈. -->
+          <% if (like === 'asc') { %>
+            <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
+          <% } else if (like === 'desc') { %>
+            <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
+          <% } else { %>
+            <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
+          <% } %> 좋아요
+        </button>        
         <select class="form-select form-select-sm line" aria-label="Small select example" style="display:inline; width:100px;">
           <%- selectOptionsHtml %>
         </select>
@@ -69,9 +87,8 @@
           </tr>
         </thead>
         <tbody class="table-group-divider">
-          <!-- DB data 불러와서 뿌려주기 -->
           <% data.forEach(item => { %>
-            <tr>
+            <tr class="<%= item.user_id==authStatus.user_id?'table-primary':''%>">
               <td>
                 <a style="display:block; color:black; text-decoration-line: none; width:100%;" href="/boards/<%= item.id %>">
                   <%= item.subject %>
@@ -81,7 +98,7 @@
               <td style="text-align:center;"><%= item.username %></td>
               <td style="text-align:center;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 10) %></td>
               <td style="text-align:center;"><%= item.like_count %></td>
-              <td style="text-align:center;"><%= item.views %></td>
+              <td style="text-align:center;"><%= item.view %></td>
             </tr>
           <% }); %>
         </tbody>
@@ -100,10 +117,72 @@
       method: 'POST',
       data: {
         line: line
-        },
+      },
       success: function(response) {
         console.log('suc');
         document.location.href = "/";
+      },
+      error: function(xhr, status, error) {
+        console.log('error');
+      }
+    });
+  });
+
+  $(".btn.view").on("click", function() {
+    let view;
+    let status = $(this).children("i").attr("status");
+    switch (status) {
+      case 'asc':
+        view = 'desc';
+        break;
+      case 'desc':
+        view = 'default';
+        break;
+      default:
+        view = 'asc';
+        break;
+    }
+
+    $.ajax({
+      url: '/cookie',
+      method: 'POST',
+      data: {
+        view
+      },
+      success: function(response) {
+        console.log('suc');
+        location.reload();
+      },
+      error: function(xhr, status, error) {
+        console.log('error');
+      }
+    });
+  });
+
+  $(".btn.like").on("click", function() {
+    let like;
+    let status = $(this).children("i").attr("status");
+    switch (status) {
+      case 'asc':
+        like = 'desc';
+        break;
+      case 'desc':
+        like = 'default';
+        break;
+      default:
+        like = 'asc';
+        break;
+    }
+
+    $.ajax({
+      url: '/cookie',
+      method: 'POST',
+      data: {
+        like
+      },
+      success: function(response) {
+        console.log('suc');
+        location.reload();
       },
       error: function(xhr, status, error) {
         console.log('error');

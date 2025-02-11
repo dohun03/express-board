@@ -7,6 +7,16 @@ const session = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
 const hashPassword = require('./lib/bcrypt.js'); // 올바르게 가져오기
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public'))); // 정적 파일 제공
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // 업로드 파일 제공
+app.use(session);
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 const multer = require('multer');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -20,32 +30,26 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + "-" + safeFileName + ext);
   },
 });
-const upload = multer({ storage: storage });
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public'))); // 정적 파일 제공
-app.use(session);
-
-// EJS 템플릿 엔진 설정
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-
-app.post('/upload', upload.single('userfile'), function (req, res, next) {
-  if (!req.file) {
+const upload = multer({ storage: storage }).array('userfile', 10);
+app.post('/upload', upload, function (req, res, next) {
+  if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
   }
 
-  let filename = req.file.filename;
-  // db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [post.user_id, post.subject, post.content], function(error, data) {
-  //   if (error) {
-  //     res.status(500).send('Internal Server Error');
-  //     return;
-  //   }
-  //   res.redirect(`/boards/${req.body.id}`)
-  // });
-  res.redirect(`/boards/${req.body.id}`)
+  // 업로드된 파일들
+  const id = req.body.id;
+  let filenames = req.files.map(file => file.filename);
+  console.log(filenames, "아이디:"+req.body.id); // 업로드된 파일명 출력
+
+  // 1. 새로운 게시글 작성 시 첨부 할 경우
+  // 2. 기존 게시물에 첨부 할 경우
+  db.query(`UPDATE tbl_board SET upload = ? WHERE id = ?;`, [JSON.stringify(filenames), id], function(error, data) {
+    if (error) {
+      res.status(500).send('Internal Server Error');
+      console.log(error)
+      return;
+    }
+  });
 });
 
 function authStatus(req, res) {
@@ -116,9 +120,7 @@ app.get('/', (req, res) => {
   LEFT JOIN tbl_like L ON B.id = L.board_id
   LEFT JOIN tbl_comment C ON B.id = C.board_id
   LEFT JOIN tbl_user U ON B.user_id = U.id ${where}GROUP BY B.id ORDER BY ${order_by}LIMIT ?, ?;`;
-
-  console.log('실행 쿼리:', db.format(sqlQuery, params));
-
+  // console.log('실행 쿼리:', db.format(sqlQuery, params));
   db.query(sqlQuery, params, function (error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
@@ -145,21 +147,20 @@ app.get('/boards/:id', async (req, res) => {
   try {
     const id = req.params.id;
     const user_id = authStatus(req,res).user_id;
-    //이새끼 수정해야됨ㅇㅇ
-    const username = authStatus(req,res).username;
 
     // 쿼리 순차 실행 -> 병렬 실행(한번에 실행)
     const [[like], [comment], [data]] = await Promise.all([
       db.promise().query(`SELECT user_id FROM tbl_like WHERE board_id=?`, [id]),
-      db.promise().query(`SELECT b.*, a.username FROM tbl_comment b LEFT JOIN tbl_user a ON b.user_id = a.id WHERE board_id=? ORDER BY b.created_at ASC;`, [id]),
-      db.promise().query(`SELECT * FROM tbl_board WHERE id=?`, [id])
+      db.promise().query(`SELECT c.*, u.username FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id]),
+      db.promise().query(`SELECT b.*, u.username FROM tbl_board b LEFT JOIN tbl_user u ON b.user_id=u.id WHERE b.id=?`, [id])
     ]);
 
     if (data && data.length > 0) {
       let view = data[0].view + 1;
       await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
+
       let active = like.some((value) => value.user_id === user_id);
-      res.render('view', { data, id, active, like, comment, username, user_id, authStatus: authStatus(req, res) });
+      res.render('view', { data, id, active, like, comment, user_id, authStatus: authStatus(req, res) });
     } else {
       res.status(404).send("요청하신 게시글을 찾을 수 없습니다.");
     }
@@ -189,7 +190,7 @@ app.get('/boards/:id/edit', (req, res) => {
       res.render('edit', { data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
     });
   } else {
-    res.render('edit', { data:'', user_id, status: 'create', authStatus: authStatus(req, res) });
+    res.render('edit', { data:'', id, user_id, status: 'create', authStatus: authStatus(req, res) });
   }
 });
 

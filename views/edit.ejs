@@ -119,11 +119,17 @@
     <br>
     <button class="btn btn-sm btn-primary save" style="float: right;">게시글 저장</button>
     <div class="form-container">
-      <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="hidden" name="id" value="<%= id%>">
+      <form action="/uploads" method="post" enctype="multipart/form-data">
         <input type="file" name="userfile" id="userfile" multiple class="file-input">
         <!-- 선택된 파일 리스트 표시 -->
-        <ul id="file-list" class="file-list"></ul>
+        <ul class="file-list">
+        <% if(data && data[0].upload) { %>
+          <% let uploads = data[0].upload %>
+          <% uploads.forEach(item => { %>
+            <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
+          <% }) %>
+        <% } %>
+        </ul>
         <button type="submit" class="submit-btn none">업로드</button>
       </form>
     </div>
@@ -133,80 +139,129 @@
   fetch("/header")
     .then(response => response.text())
     .then(data => document.querySelector(".__header__").innerHTML = data);
+  
+  $(document).ready(function() {
+    const fileInput = $("#userfile");
+    const fileList = $(".file-list");
 
-  const fileInput = $("#userfile");
-  const fileList = $("#file-list");
-  let selectedFiles = [];
+    let selectedFiles = [];
+    let addedFiles = [];
+    let uploadedFiles;
+    <% if(data) { %>
+    uploadedFiles = '<%= data[0].upload || ''%>';
+    uploadedFiles = uploadedFiles.split(',')
+    <% } %>
 
-  fileInput.on("change", function() {
-    const files = fileInput[0].files;
-    if (files.length === 0) return;
+    fileList.children("li").each( function() {
+      addedFiles.push( $(this).children(".file-name").text() )
+    });
 
-    fileList.empty();
+    fileInput.on("change", function() {
+      let form = $('form')[0]; // form 요소를 가져옵니다.
+          let formData = new FormData(form); // FormData 객체를 생성하여 form 데이터를 넣습니다.
+      const files = fileInput[0].files;
+      if (files.length === 0) return;
 
-    selectedFiles.push(...Array.from(files));
-    console.log(selectedFiles)
+      selectedFiles.push(files[0].name);
+      addedFiles.push(files[0].name);
 
-    for (let i = 0; i < selectedFiles.length; i++) {
-      const fileName = selectedFiles[i].name;
+      const fileName = files[0].name;
       const listItem = $("<li>").text(fileName);
-      // 삭제 아이콘 추가
       const deleteIcon = $("<span>").addClass("delete-icon").html("&#10006;"); // X 아이콘 추가
-
-      // 삭제 버튼 클릭 시 해당 항목 삭제
-      deleteIcon.on("click", function() {
-        listItem.remove(); // 화면에서 항목 삭제
-        selectedFiles = selectedFiles.filter(file => file.name !== fileName); // 배열에서도 삭제
-      });
 
       listItem.append(deleteIcon);
       fileList.append(listItem);
-    }
-  });
+    });
 
-  $(document).ready(function() {
+    fileList.on("click", ".delete-icon", function() {
+      const listItem = $(this).parent();
+      const fileName = listItem.text().replace("✖", "").trim(); // 파일 이름 가져오기
+
+      selectedFiles = selectedFiles.filter(file => file !== fileName);
+      addedFiles = addedFiles.filter(file => file !== fileName);
+
+      let deletedFiles = uploadedFiles.filter( (item) => !addedFiles.includes( item ));
+      let deleteFile = $(this).closest('li').children('.file-name').text();
+      console.log(deleteFile)
+      // 기존 업로드 된 파일을 인자로 받아서 addFiles에 포함되는지 검사.
+      // 만약 포함되면 false이기 때문에 return 안함.
+      // 만약 업로드 인자가 저기에 없다? 바로 true 반환 => 결국 그 값(item)을 삭제 배열에 추가됨.
+      if(confirm("정말 삭제하시겠습니까?")){
+        $.ajax({
+          url: '/uploads',
+          method: 'DELETE',
+          data: {
+            id: '<%=id%>',
+            file: deleteFile
+          },
+          success: function(response) {
+            console.log('파일 삭제 성공:', response);
+            listItem.remove();
+          },
+          error: function(xhr, status, error) {
+            console.log('파일 삭제 오류:', error);
+          }
+        });
+      }
+    });
+
     $('.save').click(function(e) {
       e.preventDefault();
-      
-      var subject = $('.subject').val();
-      var content = $('.content').val();
 
-      `<% if(status=='update'){ %>`
+      let subject = $('.subject').val();
+      let content = $('.content').val();
+      let url, method;
+      
+      if ('<%=status%>' === 'update') {
+        url = '/boards/<%=id%>';
+        method = 'PUT';
+      } else if ('<%=status%>' === 'create') {
+        url = '/boards';
+        method = 'POST';
+      }
+      
       $.ajax({
-        url: '/boards/<%=id%>',
-        method: 'PUT',
-        data: { 
-          user_id: '<%=user_id%>',
-          subject: subject, 
-          content: content
-          },
-        success: function(response) {
-          console.log('suc');
-          document.location.href = '/boards/<%=id%>';
-        },
-        error: function(xhr, status, error) {
-          console.log('error');
-        }
-      });
-      `<% } else if(status=='create'){ %>`
-      $.ajax({
-        url: '/boards',
-        method: 'POST',
+        url: url,
+        method: method,
         data: { 
           user_id: '<%=user_id%>',
           subject: subject, 
           content: content
         },
         success: function(response) {
-          document.location.href = '/boards/'+response.insertId;
-          console.log('suc');
+          let link;
+          let form = $('form')[0]; // form 요소를 가져옵니다.
+          let formData = new FormData(form); // FormData 객체를 생성하여 form 데이터를 넣습니다.
+          formData.append('id', response.insertId || '<%=id%>');
+
+          if (response.insertId)
+            link = response.insertId
+          else
+            link = '<%=id%>'
+
+          if(selectedFiles.length > 0){
+            $.ajax({
+              url: '/uploads',
+              method: 'POST',
+              data: formData, // FormData 객체를 요청 데이터로 보냅니다.
+              processData: false, // jQuery에서 자동으로 데이터 처리를 하지 않도록 설정
+              contentType: false, // multipart/form-data로 처리되도록 설정
+              success: function(response) {
+                console.log('파일 업로드 성공:', response);
+                document.location.href = '/boards/'+link;
+              },
+              error: function(xhr, status, error) {
+                console.log('파일 업로드 오류:', error);
+              }
+            });
+          } else{
+            document.location.href = '/boards/'+link;
+          }
         },
         error: function(xhr, status, error) {
-          console.log(xhr, status, error);
+          console.log('error', error);
         }
       });
-      `<% } %>`
-      $(".form-container form button[type=submit]").click();
     });
   });
 </script>

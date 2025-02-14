@@ -55,15 +55,14 @@
     <h3 style="background-color:white; padding:15px; width:100%; margin-bottom:10px; font-weight:bold;"><%= data[0].subject %></h3>
     <div style="padding:10px; height:50px;">
       <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
-      <% if(data[0].upload) { %>
+      <% if(data[0].upload && data[0].upload.length > 0) { %>
       <div class="dropdown">
         <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
         </button>
         <ul class="dropdown-menu">
-          <%
-          let uploads = data[0].upload;
-          uploads.forEach(item => { %>
+          <% let uploads = data[0].upload; %>
+          <% uploads.forEach(item => { %>
             <li><a class="dropdown-item" href="<%= `/uploads/${item}` %>" target="_blank"><%= item %></a></li>
           <% }) %>
         </ul>
@@ -74,9 +73,15 @@
     <br>
     <button class="btn btn-light <%= user_id?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
     <div class="float-end">
-      <!-- <a href="/report?id=<%= id %>" class="<%= data[0].user_id==user_id?'none':'' %>"><button class="btn btn-sm btn-dark report"><i class="fa fa-bullhorn" aria-hidden="true"></i> 신고</button></a> -->
-      <a href="/boards/<%= id %>/edit" class="<%= data[0].user_id!=user_id?'none':'' %>"><button class="btn btn-sm btn-info edit">게시글 수정</button></a>
-      <a class="<%= data[0].user_id!=user_id?'none':'' %>"><button class="btn btn-sm btn-danger delete">게시글 삭제</button></a>
+      <a href="/report?id=<%= id %>" class="<%= data[0].user_id==user_id?'none':'' %>">
+        <button class="btn btn-sm btn-dark report"><i class="fa fa-bullhorn" aria-hidden="true"></i> 신고</button>
+      </a>
+      <a href="/boards/<%= id %>/edit" class="<%= data[0].user_id!=user_id?'none':'' %>">
+        <button type="button" class="btn btn-dark edit"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 수정</button>
+      </a>
+      <a class="<%= data[0].user_id!=user_id?'none':'' %>">
+        <button class="btn btn-dark delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 삭제</button>
+      </a>
     </div>
     <br><br>
     <hr>
@@ -114,7 +119,8 @@
     .then(data => document.querySelector(".__header__").innerHTML = data);
 
   $(".btn.delete").click( function(){
-    $.ajax({
+    if(confirm("정말 삭제하시겠습니까?")){
+      $.ajax({
         url: '/boards/<%=id%>',
         method: 'DELETE',
         success: function(response) {
@@ -125,7 +131,8 @@
           console.log(xhr, status, error);
           alert("예기치 못한 에러가 발생 했습니다.")
         }
-    });
+      });
+    }
   });
 
   $(".btn.like").click( function(){

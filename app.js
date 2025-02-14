@@ -1,5 +1,6 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const iconv = require('iconv-lite');
@@ -31,24 +32,49 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage: storage }).array('userfile', 10);
-app.post('/upload', upload, function (req, res, next) {
+app.post('/uploads', upload, function (req, res, next) {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
   }
 
-  // 업로드된 파일들
   const id = req.body.id;
-  let filenames = req.files.map(file => file.filename);
-  console.log(filenames, "아이디:"+req.body.id); // 업로드된 파일명 출력
+  const filenames = req.files.map(file => file.filename);
+  console.log(filenames, "아이디:"+req.body.id, "삭제배열", req.body.deletedFiles); // 업로드된 파일명 출력
 
-  // 1. 새로운 게시글 작성 시 첨부 할 경우
-  // 2. 기존 게시물에 첨부 할 경우
   db.query(`UPDATE tbl_board SET upload = ? WHERE id = ?;`, [JSON.stringify(filenames), id], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
-      console.log(error)
       return;
     }
+    res.send()
+  });
+});
+
+app.delete('/uploads', function (req, res) {
+  const id = req.body.id;
+  const file = req.body.file;
+
+  if (!file) {
+    return res.status(400).json({ error: '삭제할 파일이 없습니다.' });
+  }
+
+  const filePath = path.join(__dirname, 'uploads', file);
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('파일 삭제 실패:', err);
+      return res.status(500).json({ error: '파일 삭제 실패' });
+    }
+    console.log(`파일 ${file} 삭제 성공`);
+
+    // 파일 삭제 후 DB 업데이트
+    db.query(`UPDATE tbl_board SET upload = JSON_REMOVE(upload, JSON_UNQUOTE(JSON_SEARCH(upload, 'one', ?))) WHERE id = ?;`, [file, id], function (error, data) {
+      if (error) {
+        console.log('쿼리 실행 실패:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      console.log('파일 삭제 후 DB 업데이트 성공');
+      res.json({ success: true, deletedFile: file });
+    });
   });
 });
 

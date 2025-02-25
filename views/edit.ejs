@@ -143,65 +143,61 @@
   $(document).ready(function() {
     const fileInput = $("#userfile");
     const fileList = $(".file-list");
-
     let selectedFiles = [];
-    let addedFiles = [];
-    let uploadedFiles;
-    <% if(data) { %>
-    uploadedFiles = '<%= data[0].upload || ''%>';
-    uploadedFiles = uploadedFiles.split(',')
-    <% } %>
-
-    fileList.children("li").each( function() {
-      addedFiles.push( $(this).children(".file-name").text() )
-    });
+    let form = $('form')[0];
+    let formData = new FormData(); // 처음에 빈 FormData 객체 생성
 
     fileInput.on("change", function() {
-      let form = $('form')[0]; // form 요소를 가져옵니다.
-          let formData = new FormData(form); // FormData 객체를 생성하여 form 데이터를 넣습니다.
-      const files = fileInput[0].files;
-      if (files.length === 0) return;
+        const files = fileInput[0].files;
 
-      selectedFiles.push(files[0].name);
-      addedFiles.push(files[0].name);
+        if (files.length === 0) return;
 
-      const fileName = files[0].name;
-      const listItem = $("<li>").text(fileName);
-      const deleteIcon = $("<span>").addClass("delete-icon").html("&#10006;"); // X 아이콘 추가
-
-      listItem.append(deleteIcon);
-      fileList.append(listItem);
+        for (let i = 0; i < files.length; i++) {
+            if (!selectedFiles.includes(files[i].name)) { // 중복 방지
+                selectedFiles.push(files[i].name);
+                formData.append('userfile', files[i]); // 기존 formData에 계속 추가
+                
+                const listItem = $("<li>").text(files[i].name);
+                const deleteIcon = $("<span>").addClass("delete-icon").html("&#10006;");
+                listItem.append(deleteIcon);
+                fileList.append(listItem);
+            }
+        }
+        console.log(formData);
     });
 
     fileList.on("click", ".delete-icon", function() {
-      const listItem = $(this).parent();
-      const fileName = listItem.text().replace("✖", "").trim(); // 파일 이름 가져오기
-
-      selectedFiles = selectedFiles.filter(file => file !== fileName);
-      addedFiles = addedFiles.filter(file => file !== fileName);
-
-      let deletedFiles = uploadedFiles.filter( (item) => !addedFiles.includes( item ));
-      let deleteFile = $(this).closest('li').children('.file-name').text();
-      console.log(deleteFile)
-      // 기존 업로드 된 파일을 인자로 받아서 addFiles에 포함되는지 검사.
-      // 만약 포함되면 false이기 때문에 return 안함.
-      // 만약 업로드 인자가 저기에 없다? 바로 true 반환 => 결국 그 값(item)을 삭제 배열에 추가됨.
       if(confirm("정말 삭제하시겠습니까?")){
-        $.ajax({
-          url: '/uploads',
-          method: 'DELETE',
-          data: {
-            id: '<%=id%>',
-            file: deleteFile
-          },
-          success: function(response) {
-            console.log('파일 삭제 성공:', response);
-            listItem.remove();
-          },
-          error: function(xhr, status, error) {
-            console.log('파일 삭제 오류:', error);
-          }
-        });
+        const listItem = $(this).parent();
+        const addedFile = listItem.text().replace("✖", "").trim(); // 새로 추가된 삭제할 파일의 이름.
+        const existedFile = $(this).closest('li').children('.file-name').text(); // 기존에 있던 삭제할 파일의 이름.
+        selectedFiles = selectedFiles.filter(file => file !== addedFile);
+        if(existedFile){
+          $.ajax({
+            url: '/uploads',
+            method: 'DELETE',
+            data: {
+              id: '<%=id%>',
+              file: existedFile
+            },
+            success: function(response) {
+              console.log('파일 삭제 성공:', response);
+              listItem.remove();
+            },
+            error: function(xhr, status, error) {
+              console.log('파일 삭제 오류:', error);
+            }
+          });
+        } else {
+          let newFormData = new FormData();
+          formData.forEach((value, key) => {
+              if (value.name !== addedFile) {
+                  newFormData.append(key, value);
+              }
+          });
+          formData = newFormData;
+          listItem.remove();
+        }
       }
     });
 
@@ -229,33 +225,25 @@
           content: content
         },
         success: function(response) {
-          let link;
-          let form = $('form')[0]; // form 요소를 가져옵니다.
-          let formData = new FormData(form); // FormData 객체를 생성하여 form 데이터를 넣습니다.
-          formData.append('id', response.insertId || '<%=id%>');
-
-          if (response.insertId)
-            link = response.insertId
-          else
-            link = '<%=id%>'
+          let id = response.insertId ? response.insertId : '<%=id%>';
+          formData.append('id', id);
 
           if(selectedFiles.length > 0){
             $.ajax({
               url: '/uploads',
               method: 'POST',
-              data: formData, // FormData 객체를 요청 데이터로 보냅니다.
-              processData: false, // jQuery에서 자동으로 데이터 처리를 하지 않도록 설정
-              contentType: false, // multipart/form-data로 처리되도록 설정
+              data: formData,
+              processData: false,
+              contentType: false,
               success: function(response) {
-                console.log('파일 업로드 성공:', response);
-                document.location.href = '/boards/'+link;
+                document.location.href = '/boards/'+id;
               },
               error: function(xhr, status, error) {
                 console.log('파일 업로드 오류:', error);
               }
             });
           } else{
-            document.location.href = '/boards/'+link;
+            document.location.href = '/boards/'+id;
           }
         },
         error: function(xhr, status, error) {

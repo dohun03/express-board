@@ -63,7 +63,7 @@
         <ul class="dropdown-menu">
           <% let uploads = data[0].upload; %>
           <% uploads.forEach(item => { %>
-            <li><a class="dropdown-item" href="<%= `/uploads/${item}` %>" target="_blank"><%= item %></a></li>
+            <li><a class="dropdown-item" href="<%= `/downloads/${item}` %>"><%= item %></a></li>
           <% }) %>
         </ul>
       </div>
@@ -118,14 +118,45 @@
     .then(response => response.text())
     .then(data => document.querySelector(".__header__").innerHTML = data);
 
+  <% let uploads = data[0].upload || ''; %>
+  let deleteFile = <%- JSON.stringify(uploads) %>;
+
+  $(document).ready(function() {
+    $(".__body__").on("input", "textarea", function() {
+      if ($(this).val().indexOf("\n") === -1) {
+        $(this).height(30);
+      } else {
+        $(this).height('auto');
+        $(this).height(this.scrollHeight);
+      }
+    });
+  });
+
   $(".btn.delete").click( function(){
     if(confirm("정말 삭제하시겠습니까?")){
       $.ajax({
         url: '/boards/<%=id%>',
         method: 'DELETE',
         success: function(response) {
-          console.log(response)
-          window.location.href = '/';
+          if(deleteFile){
+            $.ajax({
+              url: '/uploads',
+              method: 'DELETE',
+              data: {
+                id: '<%=id%>',
+                file: deleteFile
+              },
+              success: function(response) {
+                console.log('파일 삭제 성공:', response);
+                document.location.href = '/';
+              },
+              error: function(xhr, status, error) {
+                console.log('파일 삭제 오류:', error);
+              }
+            });
+          } else {
+            document.location.href = '/';
+          }
         },
         error: function(xhr, status, error) {
           console.log(xhr, status, error);
@@ -155,17 +186,6 @@
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
         alert("예기치 못한 에러가 발생 했습니다.")
-      }
-    });
-  });
-
-  $(document).ready(function() {
-    $(".__body__").on("input", "textarea", function() {
-      if ($(this).val().indexOf("\n") === -1) {
-        $(this).height(30);
-      } else {
-        $(this).height('auto');
-        $(this).height(this.scrollHeight);
       }
     });
   });
@@ -208,8 +228,8 @@
     const commentElement = $(this).closest(".comment");
     commentElement.children(".info").children(".editComment").text("저장");
     commentElement.children(".info").children(".editComment").attr("class","btn btn-primary resaveComment");
-    commentElement.children("hr").remove()
-    commentElement.children(".content")
+    commentElement.children("hr").remove();
+    commentElement.children(".content");
     commentElement.children(".content").html(`
       <textarea class="editContent" placeholder="댓글을 입력하세요">${commentElement.children(".content").text()}</textarea>
     `);

@@ -8,6 +8,7 @@ const session = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
 const hashPassword = require('./lib/bcrypt.js'); // 올바르게 가져오기
+const multer = require('multer');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,65 +19,16 @@ app.use(session);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-const multer = require('multer');
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // 파일 저장 폴더
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, ext);
-    const encodedName = iconv.decode(Buffer.from(baseName, 'binary'), 'utf-8');
-    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-    cb(null, Date.now() + "-" + safeFileName + ext);
-  },
-});
-const upload = multer({ storage: storage }).array('userfile', 10);
-app.post('/uploads', upload, function (req, res, next) {
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
-  }
-
-  const id = req.body.id;
-  const filenames = req.files.map(file => file.filename);
-  console.log(filenames, "아이디:"+req.body.id, "삭제배열", req.body.deletedFiles); // 업로드된 파일명 출력
-
-  db.query(`UPDATE tbl_board SET upload = ? WHERE id = ?;`, [JSON.stringify(filenames), id], function(error, data) {
-    if (error) {
-      res.status(500).send('Internal Server Error');
-      return;
-    }
-    res.send()
-  });
-});
-
-app.delete('/uploads', function (req, res) {
-  const id = req.body.id;
-  const file = req.body.file;
-
-  if (!file) {
-    return res.status(400).json({ error: '삭제할 파일이 없습니다.' });
-  }
-
-  const filePath = path.join(__dirname, 'uploads', file);
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      console.error('파일 삭제 실패:', err);
-      return res.status(500).json({ error: '파일 삭제 실패' });
-    }
-    console.log(`파일 ${file} 삭제 성공`);
-
-    // 파일 삭제 후 DB 업데이트
-    db.query(`UPDATE tbl_board SET upload = JSON_REMOVE(upload, JSON_UNQUOTE(JSON_SEARCH(upload, 'one', ?))) WHERE id = ?;`, [file, id], function (error, data) {
-      if (error) {
-        console.log('쿼리 실행 실패:', error);
-        return res.status(500).send('Internal Server Error');
-      }
-      console.log('파일 삭제 후 DB 업데이트 성공');
-      res.json({ success: true, deletedFile: file });
-    });
-  });
-});
+function formatDate() {
+  const date = new Date();
+  const YYYY = date.getFullYear();
+  const MM = String(date.getMonth() + 1).padStart(2, '0'); // 월 (01~12)
+  const DD = String(date.getDate()).padStart(2, '0'); // 일 (01~31)
+  const HH = String(date.getHours()).padStart(2, '0'); // 시 (00~23)
+  const mm = String(date.getMinutes()).padStart(2, '0'); // 분 (00~59)
+  const SS = String(date.getSeconds()).padStart(2, '0'); // 초 (00~59)
+  return `${YYYY}${MM}${DD}-${HH}${mm}${SS}`;
+};
 
 function authStatus(req, res) {
   if (req.session.is_logined) {
@@ -89,6 +41,103 @@ function authStatus(req, res) {
     return false;
   }
 }
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/'); // 파일 저장 폴더
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, ext);
+    const encodedName = iconv.decode(Buffer.from(baseName, 'binary'), 'utf-8');
+    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+    const date = formatDate();
+    cb(null, `${date}-${safeFileName}${ext}`);
+  },
+});
+
+const upload = multer({ storage: storage }).array('userfile', 10);
+
+app.get('/downloads/:filename', function(req, res) {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', filename);
+
+  if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "파일을 찾을 수 없습니다." });
+  }
+
+  res.download(filePath);
+});
+
+app.post('/uploads', upload, function (req, res, next) {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
+  }
+
+  const id = req.body.id;
+  const filenames = req.files.map(file => file.filename); // 파일명 배열
+
+  let sqlQuery = `UPDATE tbl_board SET upload = CASE WHEN upload IS NULL THEN JSON_ARRAY(?) ELSE JSON_MERGE_PRESERVE(upload, JSON_ARRAY(${filenames.map(() => '?').join(', ')})) END WHERE id = ?;`;
+
+  db.query(sqlQuery, [filenames, ...filenames, id], function(error, data) {
+    if (error) {
+      console.log(error);
+      res.status(500).send('Internal Server Error');
+      return;
+    }
+    res.send();
+  });
+});
+
+app.delete('/uploads', async function (req, res) {
+  const id = req.body.id;
+  let files = req.body.file;
+
+  if (!files) {
+    return res.status(400).json({ error: '삭제할 파일이 없습니다.' });
+  }
+
+  try {
+    if (Array.isArray(files)) {
+      // 배열인 경우 여러 파일 삭제
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const filePath = path.join(__dirname, 'uploads', file);
+          try {
+            await fs.promises.access(filePath); // 파일 존재 여부 확인
+            await fs.promises.unlink(filePath); // 파일 삭제
+            console.log(`파일 전체 삭제 성공: ${file}`);
+            return { file, success: true };
+          } catch (err) {
+            console.error(`파일 삭제 실패: ${file}, 오류:`, err);
+          }
+        })
+      );
+      res.json({ success: true, deletedFiles: results });
+
+    } else {
+      const filePath = path.join(__dirname, 'uploads', files);
+      try {
+        await fs.promises.access(filePath);
+        await fs.promises.unlink(filePath);
+        console.log(`파일 단일 삭제 성공: ${files}`);
+        await db.promise().query(
+          `UPDATE tbl_board SET upload = JSON_REMOVE(upload, JSON_UNQUOTE(JSON_SEARCH(upload, 'one', ?))) WHERE id = ?;`,
+          [files, id]
+        );
+        console.log('파일 삭제 후 DB 업데이트 성공');
+        res.json({ success: true, deletedFile: files });
+        
+      } catch (err) {
+        console.error(`파일 삭제 실패: ${file}, 오류:`, err);
+        res.status(500).json({ success: false, error: err.message });
+      }
+    }
+  } catch (err) {
+    console.log('라우터 실행 실패:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
 app.get('/header', (req, res) => {
   res.render('header', {authStatus: authStatus(req, res)});  // 'header.ejs' 템플릿을 렌더링하여 응답
@@ -184,14 +233,13 @@ app.get('/boards/:id', async (req, res) => {
     if (data && data.length > 0) {
       let view = data[0].view + 1;
       await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
-
       let active = like.some((value) => value.user_id === user_id);
       res.render('view', { data, id, active, like, comment, user_id, authStatus: authStatus(req, res) });
     } else {
       res.status(404).send("요청하신 게시글을 찾을 수 없습니다.");
     }
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).send("서버 오류");
   }
 });
@@ -373,6 +421,15 @@ app.post('/login', async (req, res) => {
   })
 });
 
+app.get('/logout', (req, res) => {
+  req.session.destroy((err)=>{
+    if(err)
+      throw err;
+
+    res.redirect('/')
+  })
+});
+
 app.get('/signup', (req, res) => {
   res.render('signup', { authStatus: authStatus(req, res) });
 });
@@ -394,13 +451,8 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-app.get('/logout', (req, res) => {
-  req.session.destroy((err)=>{
-    if(err)
-      throw err;
-
-    res.redirect('/')
-  })
+app.get('/settings', (req, res) => {
+  res.render('setting');
 });
 
 app.post('/cookie', (req, res) => {

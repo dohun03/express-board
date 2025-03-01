@@ -84,7 +84,6 @@
       </a>
     </div>
     <br><br>
-    <hr>
     <div class="comments">
     <% comment.forEach(item => { %>
       <div class="comment" id="<%= item.id %>" style="margin-top:10px;">
@@ -92,21 +91,20 @@
           <span user_id="<%= item.user_id %>" style="padding-right:10px;"><b><%= item.username %></b></span>|
           <span style="padding:0 10px 0 10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
           <% if(authStatus.username==item.username) {%>
-          <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">댓글 수정</button>
+          <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">수정</button>
           <% } %>
           <% if(authStatus.username==item.username) {%>
-          <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">댓글 삭제</button>
+          <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">삭제</button>
           <% } %>
         </div>
         <div class="content" style="white-space: pre-line; min-height:40px;"><%= item.content %></div>
       </div>
     <% }); %>
     </div>
-    <hr>
     <% if(authStatus) { %>
     <div class="writeComment" style="margin-top:10px; height:300px;">
       <textarea class="content" placeholder="댓글을 입력하세요"></textarea><br>
-      <button class="btn btn-sm btn-primary saveComment">댓글 저장</button>
+      <button class="btn btn-sm btn-primary saveComment">저장</button>
     </div>
     <% } else { %> 
       <h4><b>로그인 후 댓글 작성이 가능합니다.</b></h4> 
@@ -120,17 +118,6 @@
 
   <% let uploads = data[0].upload || ''; %>
   let deleteFile = <%- JSON.stringify(uploads) %>;
-
-  $(document).ready(function() {
-    $(".__body__").on("input", "textarea", function() {
-      if ($(this).val().indexOf("\n") === -1) {
-        $(this).height(30);
-      } else {
-        $(this).height('auto');
-        $(this).height(this.scrollHeight);
-      }
-    });
-  });
 
   $(".btn.delete").click( function(){
     if(confirm("정말 삭제하시겠습니까?")){
@@ -190,6 +177,17 @@
     });
   });
 
+  $(document).ready(function() {
+    $(".__body__").on("input", "textarea", function() {
+      if ($(this).val().indexOf("\n") === -1) {
+        $(this).height(35);
+      } else {
+        $(this).height('auto');
+        $(this).height(this.scrollHeight);
+      }
+    });
+  });
+
   $(".btn.saveComment").click( function(){
     let content = $(".writeComment .content").val()
     $.ajax({
@@ -204,18 +202,19 @@
         console.log(response)
         // 새로운 댓글을 즉시 추가
         let newComment = `
-          <div class="comment" id="${response.comment.id}" style="margin-top:10px;">
-            <div class="info" style="margin-top:10px;">
-              <span user_id="${response.comment.user_id}" style="padding:10px;"><b>${response.comment.username}</b></span>|
-              <span style="padding:10px;">${new Date(response.comment.created_at).toISOString().replace('T', ' ').substring(0, 19)}</span>
-              <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">댓글 삭제</button>
-            </div>
-            <div class="content" style="padding:10px; white-space: pre-line;">${response.comment.content}</div>
-            <hr>
+        <div class="comment" id="${response.comment.id}" style="margin-top:10px;">
+          <div class="info" style="margin-top:10px;">
+            <span user_id="${response.comment.user_id}" style="padding-right:10px;"><b>${response.comment.username}</b></span>|
+            <span style="padding:0 10px 0 10px;">${new Date(response.comment.created_at).toISOString().replace('T', ' ').substring(0, 19)}</span>
+            <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">수정</button>
+            <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">삭제</button>
           </div>
-        `;
+          <div class="content" style="white-space: pre-line; min-height:40px;">${response.comment.content}</div>
+        </div>`;
+
         $(".comments").append(newComment);
         $(".writeComment .content").val("");
+        $(".writeComment .content").height(35);
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -228,8 +227,6 @@
     const commentElement = $(this).closest(".comment");
     commentElement.children(".info").children(".editComment").text("저장");
     commentElement.children(".info").children(".editComment").attr("class","btn btn-primary resaveComment");
-    commentElement.children("hr").remove();
-    commentElement.children(".content");
     commentElement.children(".content").html(`
       <textarea class="editContent" placeholder="댓글을 입력하세요">${commentElement.children(".content").text()}</textarea>
     `);
@@ -240,9 +237,13 @@
     const commentElement = $(this).closest(".comment");
     const id = commentElement.attr("id");
     const content = commentElement.children(".content").children("textarea").val();
+    commentElement.children(".info").children(".resaveComment").text("수정");
+    commentElement.children(".info").children(".resaveComment").attr("class","btn btn-info editComment");
+    commentElement.children(".content").text(content);
+    
     $.ajax({
       url: '/comments',
-      method: 'PUT',
+      method: 'PATCH',
       data: { 
         id,
         content
@@ -258,23 +259,25 @@
   });
 
   $(".comments").on("click", ".btn.deleteComment", function() {
-    const commentElement = $(this).closest(".comment");
-    const id = commentElement.attr("id");
-    $.ajax({
-      url: '/comments',
-      method: 'DELETE',
-      data: { 
-        id
-      },
-      success: function(response) {
-        console.log(response);
-        commentElement.remove();  // 댓글 요소 삭제
-      },
-      error: function(xhr, status, error) {
-        console.log(xhr, status, error);
-        alert("예기치 못한 에러가 발생 했습니다.")
-      }
-    });
+    if(confirm("정말 삭제하시겠습니까?")){
+      const commentElement = $(this).closest(".comment");
+      const id = commentElement.attr("id");
+      $.ajax({
+        url: '/comments',
+        method: 'DELETE',
+        data: { 
+          id
+        },
+        success: function(response) {
+          console.log(response);
+          commentElement.remove();  // 댓글 요소 삭제
+        },
+        error: function(xhr, status, error) {
+          console.log(xhr, status, error);
+          alert("예기치 못한 에러가 발생 했습니다.")
+        }
+      });
+    }
   });
 </script>
 </html>

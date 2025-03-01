@@ -50,42 +50,71 @@ const storage = multer.diskStorage({
     const ext = path.extname(file.originalname);
     const baseName = path.basename(file.originalname, ext);
     const encodedName = iconv.decode(Buffer.from(baseName, 'binary'), 'utf-8');
-    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎ]/g, '_');
     const date = formatDate();
     cb(null, `${date}-${safeFileName}${ext}`);
   },
 });
 
-const upload = multer({ storage: storage }).array('userfile', 10);
+const upload = multer({ 
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 한 파일당 10MB 제한
+    files: 5, // 최대 5개 파일 제한
+    fieldSize: 50 * 1024 * 1024 // 전체 업로드 크기 50MB 제한
+   },
+  storage: storage 
+}).array('userfile', 5);
 
 app.get('/downloads/:filename', function(req, res) {
   const filename = req.params.filename;
   const filePath = path.join(__dirname, 'uploads', filename);
 
   if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "파일을 찾을 수 없습니다." });
+      return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
   }
 
   res.download(filePath);
 });
 
-app.post('/uploads', upload, function (req, res, next) {
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ error: "파일이 업로드되지 않았습니다." });
-  }
-
-  const id = req.body.id;
-  const filenames = req.files.map(file => file.filename); // 파일명 배열
-
-  let sqlQuery = `UPDATE tbl_board SET upload = CASE WHEN upload IS NULL THEN JSON_ARRAY(?) ELSE JSON_MERGE_PRESERVE(upload, JSON_ARRAY(${filenames.map(() => '?').join(', ')})) END WHERE id = ?;`;
-
-  db.query(sqlQuery, [filenames, ...filenames, id], function(error, data) {
-    if (error) {
-      console.log(error);
-      res.status(500).send('Internal Server Error');
-      return;
+app.post('/uploads', function (req, res) {
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      // Multer에서 발생하는 오류 처리
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).send('파일 크기가 너무 큽니다! (최대 10MB)');
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(413).send('파일 개수 제한을 초과했습니다! (최대 5개)');
+      }
+      if (err.code === 'LIMIT_FIELD_SIZE') {
+        return res.status(413).send('총 업로드 크기가 너무 큽니다! (최대 50MB)');
+      }
+      return res.status(400).send('파일 업로드 중 오류가 발생했습니다.');
+    } else if (err) {
+      // 기타 서버 오류 처리
+      return res.status(500).json({ error: '서버 내부 오류 발생' });
     }
-    res.send();
+    
+    // 정상적으로 파일이 업로드된 경우
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: '파일이 업로드되지 않았습니다.' });
+    }
+
+    const id = req.body.id;
+    const filenames = req.files.map(file => file.filename); // 파일명 배열
+
+    let sqlQuery = `UPDATE tbl_board SET upload = CASE 
+      WHEN upload IS NULL THEN JSON_ARRAY(?) 
+      ELSE JSON_MERGE_PRESERVE(upload, JSON_ARRAY(${filenames.map(() => '?').join(', ')})) 
+      END WHERE id = ?;`;
+
+    db.query(sqlQuery, [filenames, ...filenames, id], function(error, data) {
+      if (error) {
+        console.log(error);
+        return res.status(500).json({ error: '데이터베이스 업데이트 중 오류 발생' });
+      }
+      res.json({ success: true, message: '파일 업로드 성공!' });
+    });
   });
 });
 
@@ -134,7 +163,6 @@ app.delete('/uploads', async function (req, res) {
       }
     }
   } catch (err) {
-    console.log('라우터 실행 실패:', err);
     res.status(500).send('Internal Server Error');
   }
 });
@@ -145,7 +173,7 @@ app.get('/header', (req, res) => {
 
 app.get('/', (req, res) => {
   let page = req.query.page ? parseInt(req.query.page) : 1;
-  let line = 5;
+  let line = 100;
   if (req.cookies.line) {
     line = parseInt(req.cookies.line);
   }
@@ -206,7 +234,7 @@ app.get('/', (req, res) => {
     const options = [5, 10, 50, 100];
     options.forEach(option => {
       const selected = option === line ? 'selected' : '';
-      selectOptionsHtml += `<option value="${option}" ${selected}>${option} 줄</option>`;
+      selectOptionsHtml += `<option value='${option}' ${selected}>${option} 줄</option>`;
     });
 
     let page_total = 0;
@@ -236,11 +264,10 @@ app.get('/boards/:id', async (req, res) => {
       let active = like.some((value) => value.user_id === user_id);
       res.render('view', { data, id, active, like, comment, user_id, authStatus: authStatus(req, res) });
     } else {
-      res.status(404).send("요청하신 게시글을 찾을 수 없습니다.");
+      res.status(404).send('요청하신 게시글을 찾을 수 없습니다.');
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).send("서버 오류");
+    res.status(500).send('Internal Server Error');
   }
 });
 
@@ -269,7 +296,7 @@ app.get('/boards/:id/edit', (req, res) => {
 });
 
 app.post('/boards', (req, res) => {
-  let post = req.body;
+  const post = req.body;
   db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [post.user_id, post.subject, post.content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
@@ -279,9 +306,9 @@ app.post('/boards', (req, res) => {
   });
 });
 
-app.put('/boards/:id', (req, res) => {
+app.patch('/boards/:id', (req, res) => {
   const id = req.params.id
-  let post = req.body;
+  const post = req.body;
   db.query(`UPDATE tbl_board SET user_id=?, subject=?, content=? where id=?`, [post.user_id, post.subject, post.content, id], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
@@ -338,7 +365,7 @@ app.delete('/likes/:id', (req, res) => {
 });
 
 app.post('/comments', (req, res) => {
-  let post = req.body;
+  const post = req.body;
   const user_id = authStatus(req, res).user_id;
   db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [post.board_id, user_id, post.content], function(error, data) {
     if (error) {
@@ -359,8 +386,8 @@ app.post('/comments', (req, res) => {
   });
 });
 
-app.put('/comments', (req, res) => {
-  let post = req.body;
+app.patch('/comments', (req, res) => {
+  const post = req.body;
   const user_id = authStatus(req, res).user_id;
   db.query(`UPDATE tbl_comment SET content=? where id=? and user_id=?`, [post.content, post.id, user_id], function(error, data) {
     if (error) {
@@ -373,7 +400,7 @@ app.put('/comments', (req, res) => {
 });
 
 app.delete('/comments', (req, res) => {
-  let post = req.body;
+  const post = req.body;
   const user_id = authStatus(req, res).user_id;
   db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [post.id, user_id], function(error, data) {
     if (error) {
@@ -392,33 +419,36 @@ app.get('/login', (req, res) => {
   }
 });
 
-app.post('/login', async (req, res) => {
-  let post = req.body;
+app.post('/login', (req, res) => {
+  const post = req.body;
+
+  if (!post.username || !post.password) {
+    return res.status(400).render('error', { errorMessage: '아이디와 비밀번호를 입력해주세요.' });
+  }
+
   db.query(`SELECT id, username, password FROM tbl_user WHERE username=?`,[post.username], function(error, data) {
     if(error){
       res.status(500).send('Internal Server Error');
       return;
-    } else if(data && data.length > 0){
-      if(data[0].username == post.username){
-        bcrypt.compare(post.password, data[0].password, function(err, result) {
-          if (result) { // 비밀번호가 일치하는 경우
-            req.session.is_logined = true;
-            req.session.username = data[0].username;
-            req.session.user_id = data[0].id;
-            req.session.save( function() {
-              res.json({ success: true });
-            })
-          } else {
-            res.json({ success: false, message: '비밀번호가 맞지 않습니다.' });
-          }
-        })
-      } else {
-        res.json({ success: false, message: '존재하지 않는 아이디입니다.' });
-      }
-    } else { //쿼리 결과가 0개인 경우[ 아이디가 없는 경우. ]
-      res.json({ success: false, message: '아이디 또는 비밀번호가 맞지 않습니다.' });
     }
-  })
+
+    if(data.length > 0){
+      bcrypt.compare(post.password, data[0].password, function(err, result) {
+        if (result) { // 비밀번호가 일치하는 경우
+          req.session.is_logined = true;
+          req.session.username = data[0].username;
+          req.session.user_id = data[0].id;
+          req.session.save(() => {
+            res.json({ success: true });
+          })
+        } else {
+          res.json({ success: false, message: '비밀번호가 맞지 않습니다.' });
+        }
+      })
+    } else {
+      res.json({ success: false, message: '존재하지 않는 아이디입니다.' });
+    }
+  });
 });
 
 app.get('/logout', (req, res) => {
@@ -436,23 +466,92 @@ app.get('/signup', (req, res) => {
 
 app.post('/signup', async (req, res) => {
   try {
-    let post = req.body;
+    const post = req.body;
+    const patternUsername = /^[A-Za-z0-9가-힣]{2,12}$/;
+    const patternPassword = /^[A-Za-z0-9]{4,20}$/;
+
+    if (!post.username || !post.password) {
+      return res.status(400).render('error', { errorMessage: '아이디와 비밀번호를 입력해주세요.' });
+    }
+
+    if (!patternUsername.test(post.username) || !patternPassword.test(post.password)) {
+      return res.status(400).render('error', { errorMessage: '조건에 맞게 아이디와 비밀번호를 입력해주세요.' });
+    }
+
     const hashedPassword = await hashPassword(post.password);
-    db.query(`INSERT INTO tbl_user (username, password) VALUES (?,?);`, [post.username, hashedPassword], function(error, data) {
-      if (error) {
-        res.status(500).render('error', { errorMessage:'이미 존재하는 아이디 입니다.', authStatus: authStatus(req, res) } );
-        return;
-      }
-      res.redirect('/login');
-    });
-  } catch {
-    // 해싱 중 에러가 발생하면 처리
-    res.status(500).render('error', { errorMessage: '비밀번호 해싱 중 오류가 발생했습니다.', authStatus: authStatus(req, res) });
+
+    await db.promise().query(`INSERT INTO tbl_user (username, password) VALUES (?,?);`, [post.username, hashedPassword]);
+
+    res.redirect('/login');
+  } catch (err) {
+    res.status(500).send('Internal Server Error');
   }
 });
 
 app.get('/settings', (req, res) => {
   res.render('setting');
+});
+
+app.patch('/settings/username', (req, res) => {
+  const post = req.body;
+  const patternUsername = /^[A-Za-z0-9가-힣]{2,12}$/;
+
+  if (!post.username) {
+    return res.status(400).send('아이디를 입력해주세요.');
+  }
+
+  if (!patternUsername.test(post.username)) {
+    return res.status(400).send('조건에 맞게 아이디를 입력해주세요.');
+  }
+
+  db.query(`UPDATE tbl_user SET username = ? WHERE id=?`,[post.username, authStatus(req, res).user_id], function(error, data) {
+    if(error){
+      res.status(500).send('Internal Server Error');
+      return;
+    }
+    req.session.username = post.username;
+    req.session.save(() => {
+      res.json({ success: true });
+    });
+  });
+});
+
+app.patch('/settings/password', async (req, res) => {
+  try {
+    const post = req.body;
+    const user_id = authStatus(req, res).user_id;
+    const patternPassword = /^[A-Za-z0-9]{4,20}$/;
+
+    if (!post.password) {
+      return res.status(400).send('비밀번호를 입력해주세요.');
+    }
+  
+    if (!patternPassword.test(post.password)) {
+      return res.status(400).send('조건에 맞게 비밀번호를 입력해주세요.');
+    }
+    
+    const [data] = await db.promise().query(`SELECT id, username, password FROM tbl_user WHERE id=?`,[user_id]);
+  
+    if(data.length === 0) {
+      return res.status(404).send('존재하지 않는 아이디입니다.');
+    }
+
+    const match = await bcrypt.compare(post.password, data[0].password);
+    console.log(match)
+  
+    if(!match) {
+      return res.status(400).send('비밀번호가 일치하지 않습니다.');
+    }
+  
+    const newPassword = await hashPassword(post.newPassword);
+
+    await db.promise().query(`UPDATE tbl_user SET password = ? WHERE id=?`,[newPassword, user_id]);
+
+    res.send('비밀번호가 변경 되었습니다.');
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 app.post('/cookie', (req, res) => {

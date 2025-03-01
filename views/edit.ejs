@@ -117,10 +117,13 @@
     <textarea class="form-control content" style="height:80%;"></textarea>
     <% } %>
     <br>
-    <button class="btn btn-sm btn-primary save" style="float: right;">게시글 저장</button>
+    <div style="float: right;">
+      <button class="btn btn-sm btn-primary save">게시글 저장</button>
+      <a href="javascript:window.history.back()"><button class="btn btn-sm btn-warning back">취소</button></a>
+    </div>
     <div class="form-container">
       <form action="/uploads" method="post" enctype="multipart/form-data">
-        <input type="file" name="userfile" id="userfile" multiple class="file-input">
+        <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">
         <!-- 선택된 파일 리스트 표시 -->
         <ul class="file-list">
         <% if(data && data[0].upload) { %>
@@ -203,6 +206,8 @@
 
     $('.save').click(function(e) {
       e.preventDefault();
+      $(this).attr("disabled", true); // 도배 예방
+      $(this).text("저장 중..");
 
       let subject = $('.subject').val();
       let content = $('.content').val();
@@ -210,7 +215,7 @@
       
       if ('<%=status%>' === 'update') {
         url = '/boards/<%=id%>';
-        method = 'PUT';
+        method = 'PATCH';
       } else if ('<%=status%>' === 'create') {
         url = '/boards';
         method = 'POST';
@@ -239,7 +244,9 @@
                 document.location.href = '/boards/'+id;
               },
               error: function(xhr, status, error) {
-                console.log('파일 업로드 오류:', error);
+                console.log('파일 업로드 오류:', xhr.responseText);
+                alert(xhr.responseText);
+                document.location.href = '/boards/'+id;
               }
             });
           } else{

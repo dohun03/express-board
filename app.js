@@ -7,6 +7,7 @@ const iconv = require('iconv-lite');
 const session = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 const hashPassword = require('./lib/bcrypt.js'); // 올바르게 가져오기
 const multer = require('multer');
 
@@ -16,10 +17,17 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public'))); // 정적 파일 제공
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // 업로드 파일 제공
 app.use(session);
+app.use(cors());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-function formatDate() {
+app.use((req, res, next) => {
+  // 사용자의 IP 주소를 출력
+  console.log('User IP:', req.ip);
+  next();
+});
+
+function formatDate(format) {
   const date = new Date();
   const YYYY = date.getFullYear();
   const MM = String(date.getMonth() + 1).padStart(2, '0'); // 월 (01~12)
@@ -27,7 +35,15 @@ function formatDate() {
   const HH = String(date.getHours()).padStart(2, '0'); // 시 (00~23)
   const mm = String(date.getMinutes()).padStart(2, '0'); // 분 (00~59)
   const SS = String(date.getSeconds()).padStart(2, '0'); // 초 (00~59)
-  return `${YYYY}${MM}${DD}-${HH}${mm}${SS}`;
+
+  switch(format) {
+    case 'file':
+      return `${YYYY}${MM}${DD}-${HH}${mm}${SS}`;
+    case 'db':
+      return `${YYYY}-${MM}-${DD} ${HH}:${mm}:${SS}`;
+    default:
+      return '잘못된 형식입니다.';
+  }
 };
 
 function authStatus(req, res) {
@@ -50,8 +66,8 @@ const storage = multer.diskStorage({
     const ext = path.extname(file.originalname);
     const baseName = path.basename(file.originalname, ext);
     const encodedName = iconv.decode(Buffer.from(baseName, 'binary'), 'utf-8');
-    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎ]/g, '_');
-    const date = formatDate();
+    const safeFileName = encodedName.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎ\s]/g, '_');
+    const date = formatDate('file');
     cb(null, `${date}-${safeFileName}${ext}`);
   },
 });
@@ -158,17 +174,13 @@ app.delete('/uploads', async function (req, res) {
         res.json({ success: true, deletedFile: files });
         
       } catch (err) {
-        console.error(`파일 삭제 실패: ${file}, 오류:`, err);
+        console.error(`파일 삭제 실패: ${files}, 오류:`, err);
         res.status(500).json({ success: false, error: err.message });
       }
     }
   } catch (err) {
     res.status(500).send('Internal Server Error');
   }
-});
-
-app.get('/header', (req, res) => {
-  res.render('header', {authStatus: authStatus(req, res)});  // 'header.ejs' 템플릿을 렌더링하여 응답
 });
 
 app.get('/', (req, res) => {
@@ -242,7 +254,7 @@ app.get('/', (req, res) => {
       page_total = Math.ceil(parseInt(data[0]['total']) / line);
     }
 
-    res.render('list', { data, page_total, selectOptionsHtml, currentPage: page, search, like, view, authStatus: authStatus(req, res)});
+    res.render('title', { body:'list', data, page_total, selectOptionsHtml, currentPage: page, search, like, view, authStatus: authStatus(req, res)});
   });
 });
 
@@ -262,7 +274,7 @@ app.get('/boards/:id', async (req, res) => {
       let view = data[0].view + 1;
       await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
       let active = like.some((value) => value.user_id === user_id);
-      res.render('view', { data, id, active, like, comment, user_id, authStatus: authStatus(req, res) });
+      res.render('title', { body:'view', data, id, active, like, comment, authStatus: authStatus(req, res) });
     } else {
       res.status(404).send('요청하신 게시글을 찾을 수 없습니다.');
     }
@@ -273,7 +285,7 @@ app.get('/boards/:id', async (req, res) => {
 
 app.get('/boards/:id/edit', (req, res) => {
   if(!req.session.is_logined){
-    res.status(500).render('error', { errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.' } );
+    res.status(500).render('title', { body:'error', errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) });
     return;
   }
 
@@ -286,18 +298,19 @@ app.get('/boards/:id/edit', (req, res) => {
         return res.status(500).send('Internal Server Error');
       }
       if(data[0].user_id!=user_id) {
-        return res.status(500).render('error', { errorMessage:'당신은 수정 권한이 없습니다.' } );
+        return res.status(500).render('title', { body:'error', errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
       }
-      res.render('edit', { data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
+      res.render('title', { body:'edit', data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
     });
   } else {
-    res.render('edit', { data:'', id, user_id, status: 'create', authStatus: authStatus(req, res) });
+    res.render('title', { body:'edit', data:'', id, user_id, status: 'create', authStatus: authStatus(req, res) });
   }
 });
 
 app.post('/boards', (req, res) => {
   const post = req.body;
-  db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [post.user_id, post.subject, post.content], function(error, data) {
+  const user_id = authStatus(req, res).user_id;
+  db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [user_id, post.subject, post.content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -309,7 +322,9 @@ app.post('/boards', (req, res) => {
 app.patch('/boards/:id', (req, res) => {
   const id = req.params.id
   const post = req.body;
-  db.query(`UPDATE tbl_board SET user_id=?, subject=?, content=? where id=?`, [post.user_id, post.subject, post.content, id], function(error, data) {
+  const user_id = authStatus(req, res).user_id;
+  const date = formatDate('db');
+  db.query(`UPDATE tbl_board SET subject=?, content=?, updated_at=? where id=? and user_id=?`, [post.subject, post.content, date, id, user_id], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
@@ -413,9 +428,9 @@ app.delete('/comments', (req, res) => {
 
 app.get('/login', (req, res) => {
   if( authStatus(req, res) ) {
-    res.render('error', { errorMessage:'이미 로그인 됐습니다!' })
+    res.render('title', { body:'error', errorMessage:'이미 로그인 됐습니다!', authStatus: authStatus(req, res) })
   } else {
-    res.render('login', { authStatus: authStatus(req, res) })
+    res.render('title', { body:'login', authStatus: authStatus(req, res) })
   }
 });
 
@@ -423,7 +438,7 @@ app.post('/login', (req, res) => {
   const post = req.body;
 
   if (!post.username || !post.password) {
-    return res.status(400).render('error', { errorMessage: '아이디와 비밀번호를 입력해주세요.' });
+    return res.status(400).render('title', { body:'error', errorMessage: '아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
   }
 
   db.query(`SELECT id, username, password FROM tbl_user WHERE username=?`,[post.username], function(error, data) {
@@ -461,7 +476,7 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/signup', (req, res) => {
-  res.render('signup', { authStatus: authStatus(req, res) });
+  res.render('title', { body:'signup', authStatus: authStatus(req, res) });
 });
 
 app.post('/signup', async (req, res) => {
@@ -471,11 +486,11 @@ app.post('/signup', async (req, res) => {
     const patternPassword = /^[A-Za-z0-9]{4,20}$/;
 
     if (!post.username || !post.password) {
-      return res.status(400).render('error', { errorMessage: '아이디와 비밀번호를 입력해주세요.' });
+      return res.status(400).render('title', { body:'error', errorMessage: '아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
     }
 
     if (!patternUsername.test(post.username) || !patternPassword.test(post.password)) {
-      return res.status(400).render('error', { errorMessage: '조건에 맞게 아이디와 비밀번호를 입력해주세요.' });
+      return res.status(400).render('title', { body:'error', errorMessage: '조건에 맞게 아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
     }
 
     const hashedPassword = await hashPassword(post.password);
@@ -484,12 +499,17 @@ app.post('/signup', async (req, res) => {
 
     res.redirect('/login');
   } catch (err) {
-    res.status(500).send('Internal Server Error');
+    res.status(500).render('title', { body:'error', errorMessage: '이미 존재하는 아이디입니다.', authStatus: authStatus(req, res) } );
   }
 });
 
 app.get('/settings', (req, res) => {
-  res.render('setting');
+  if(!req.session.is_logined){
+    res.status(500).render('title', { body:'error', errorMessage:'당신은 접근 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
+    return;
+  }
+
+  res.render('title', { body:'setting', authStatus: authStatus(req, res)});
 });
 
 app.patch('/settings/username', (req, res) => {
@@ -506,12 +526,12 @@ app.patch('/settings/username', (req, res) => {
 
   db.query(`UPDATE tbl_user SET username = ? WHERE id=?`,[post.username, authStatus(req, res).user_id], function(error, data) {
     if(error){
-      res.status(500).send('Internal Server Error');
+      res.status(500).send('아이디가 이미 존재합니다!');
       return;
     }
     req.session.username = post.username;
     req.session.save(() => {
-      res.json({ success: true });
+      res.send('아이디가 변경 되었습니다!');
     });
   });
 });
@@ -547,7 +567,7 @@ app.patch('/settings/password', async (req, res) => {
 
     await db.promise().query(`UPDATE tbl_user SET password = ? WHERE id=?`,[newPassword, user_id]);
 
-    res.send('비밀번호가 변경 되었습니다.');
+    res.send('비밀번호가 변경 되었습니다!');
   } catch (err) {
     console.log(err);
     res.status(500).send('Internal Server Error');
@@ -555,18 +575,21 @@ app.patch('/settings/password', async (req, res) => {
 });
 
 app.post('/cookie', (req, res) => {
-  if(req.body.line)
-    res.cookie('line', req.body.line, { maxAge: 900000, httpOnly: true });
+  const { line, view, like } = req.body;
+  const filter = ['asc', 'desc', 'default'];
+  
+  if(Number.isInteger(parseInt(line)))
+    res.cookie('line', line, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
-  if(req.body.view)
-    res.cookie('view', req.body.view, { maxAge: 900000, httpOnly: true });
+  if(filter.includes(view))
+    res.cookie('view', view, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
-  if(req.body.like)
-    res.cookie('like', req.body.like, { maxAge: 900000, httpOnly: true });
+  if(filter.includes(like))
+    res.cookie('like', like, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
   res.send('Cookie set');
 });
 
-app.listen(3000, () => {
-  console.log('Server is running on http://localhost:3000');
+app.listen(8080, () => {
+  console.log('Server is running on http://localhost:8080');
 });

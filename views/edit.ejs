@@ -1,33 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <title>Node JS</title>
-  <style>
-  html { height: 100%; }
-  body { height: 100%; margin: 0; padding: 0; }
-  .__body__ { padding: 120px 340px 40px 340px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
-  
-  /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
-  @media (max-width: 768px) {
-      .__body__ {
-          padding: 80px 20px; /* 작은 화면에서 패딩 조정 */
-      }
-  }
-  .navbar {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-  }
-  .none {
-      display:none;
-  }
+<style>
   .form-container {
     background-color: #fff;
     padding: 20px;
@@ -104,45 +75,35 @@
     color: red;
     font-size: 16px;
   }
-  </style>
-</head>
-<body>
-  <div class="__header__"></div>
-  <div class="__body__">
-    <% if(data) { %>
-    <input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
-    <textarea class="form-control content" style="height:80%;"><%= data[0].content %></textarea>
-    <% } else { %>
-    <input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
-    <textarea class="form-control content" style="height:80%;"></textarea>
+</style>
+<% if(data) { %>
+<input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
+<textarea class="form-control content" style="height:80%;"><%= data[0].content %></textarea>
+<% } else { %>
+<input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
+<textarea class="form-control content" style="height:80%;"></textarea>
+<% } %>
+<br>
+<div style="float: right;">
+  <button class="btn btn-sm btn-primary save">게시글 저장</button>
+  <a href="javascript:window.history.back()"><button class="btn btn-sm btn-warning back">취소</button></a>
+</div>
+<div class="form-container">
+  <form action="/uploads" method="post" enctype="multipart/form-data">
+    <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">
+    <!-- 선택된 파일 리스트 표시 -->
+    <ul class="file-list">
+    <% if(data && data[0].upload) { %>
+      <% let uploads = data[0].upload %>
+      <% uploads.forEach(item => { %>
+        <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
+      <% }) %>
     <% } %>
-    <br>
-    <div style="float: right;">
-      <button class="btn btn-sm btn-primary save">게시글 저장</button>
-      <a href="javascript:window.history.back()"><button class="btn btn-sm btn-warning back">취소</button></a>
-    </div>
-    <div class="form-container">
-      <form action="/uploads" method="post" enctype="multipart/form-data">
-        <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">
-        <!-- 선택된 파일 리스트 표시 -->
-        <ul class="file-list">
-        <% if(data && data[0].upload) { %>
-          <% let uploads = data[0].upload %>
-          <% uploads.forEach(item => { %>
-            <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
-          <% }) %>
-        <% } %>
-        </ul>
-        <button type="submit" class="submit-btn none">업로드</button>
-      </form>
-    </div>
-  </div>
-</body>
+    </ul>
+    <button type="submit" class="submit-btn none">업로드</button>
+  </form>
+</div>
 <script>
-  fetch("/header")
-    .then(response => response.text())
-    .then(data => document.querySelector(".__header__").innerHTML = data);
-  
   $(document).ready(function() {
     const fileInput = $("#userfile");
     const fileList = $(".file-list");
@@ -151,22 +112,22 @@
     let formData = new FormData(); // 처음에 빈 FormData 객체 생성
 
     fileInput.on("change", function() {
-        const files = fileInput[0].files;
+      const files = fileInput[0].files;
 
-        if (files.length === 0) return;
+      if (files.length === 0) return;
 
-        for (let i = 0; i < files.length; i++) {
-            if (!selectedFiles.includes(files[i].name)) { // 중복 방지
-                selectedFiles.push(files[i].name);
-                formData.append('userfile', files[i]); // 기존 formData에 계속 추가
-                
-                const listItem = $("<li>").text(files[i].name);
-                const deleteIcon = $("<span>").addClass("delete-icon").html("&#10006;");
-                listItem.append(deleteIcon);
-                fileList.append(listItem);
-            }
+      for (let i = 0; i < files.length; i++) {
+        if (!selectedFiles.includes(files[i].name)) { // 중복 방지
+          selectedFiles.push(files[i].name);
+          formData.append('userfile', files[i]); // 기존 formData에 계속 추가
+          
+          const listItem = $("<li>").text(files[i].name);
+          const deleteIcon = $("<span>").addClass("delete-icon").html("&#10006;");
+          listItem.append(deleteIcon);
+          fileList.append(listItem);
         }
-        console.log(formData);
+      }
+      console.log(formData);
     });
 
     fileList.on("click", ".delete-icon", function() {
@@ -225,13 +186,16 @@
         url: url,
         method: method,
         data: { 
-          user_id: '<%=user_id%>',
           subject: subject, 
           content: content
         },
         success: function(response) {
           let id = response.insertId ? response.insertId : '<%=id%>';
           formData.append('id', id);
+          for (let pair of formData.entries()) {
+            console.log(pair[0], pair[1]);
+          }
+
 
           if(selectedFiles.length > 0){
             $.ajax({
@@ -246,7 +210,7 @@
               error: function(xhr, status, error) {
                 console.log('파일 업로드 오류:', xhr.responseText);
                 alert(xhr.responseText);
-                document.location.href = '/boards/'+id;
+                // document.location.href = '/boards/'+id;
               }
             });
           } else{
@@ -260,4 +224,3 @@
     });
   });
 </script>
-</html>

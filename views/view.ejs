@@ -1,123 +1,85 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <title>Node JS</title>
-  <style>
-    html { height: 100%; }
-    body { height: 100%; margin: 0; padding: 0; }
-    .__body__ { padding: 120px 340px 40px 340px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
-    
-    /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
-    @media (max-width: 768px) {
-        .__body__ {
-            padding: 80px 20px; /* 작은 화면에서 패딩 조정 */
-        }
-    }
-    .navbar {
-        position: fixed;
-        top: 0;
-        width: 100%;
-        z-index: 1000;
-    }
-    .none {
-        display:none;
-    }
-    .content {
-      display: flex;
-    }
-    textarea {
-      width: 100%;
-      height: 40px;
-      border: none; /* 테두리 제거 */
-      background-color: #f0f0f0; /* 배경색 설정 */
-      border-bottom: 1px solid #bcbdbe; /* 검은색 밑줄 */
-      outline: none; /* 포커스 시 테두리 없애기 */
-      resize: none; /* 크기 조정 불가 */
-      overflow-y: hidden; /* 세로 스크롤을 숨김 */
-    }
-    textarea:hover {
-      border-bottom: 1px solid black;
-    }
-    .dropdown {
-      float: right;
-    }
-  </style>
-</head>
-<body>
-  <div class="__header__"></div>
-  <div class="__body__">
-    <h3 style="background-color:white; padding:15px; width:100%; margin-bottom:10px; font-weight:bold;"><%= data[0].subject %></h3>
-    <div style="padding:10px; height:50px;">
-      <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
-      <% if(data[0].upload && data[0].upload.length > 0) { %>
-      <div class="dropdown">
-        <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
-        </button>
-        <ul class="dropdown-menu">
-          <% let uploads = data[0].upload; %>
-          <% uploads.forEach(item => { %>
-            <li><a class="dropdown-item" href="<%= `/downloads/${item}` %>"><%= item %></a></li>
-          <% }) %>
-        </ul>
-      </div>
+<style>
+  .content {
+    display: flex;
+  }
+  textarea {
+    width: 100%;
+    height: 40px;
+    border: none; /* 테두리 제거 */
+    background-color: #f0f0f0; /* 배경색 설정 */
+    border-bottom: 1px solid #bcbdbe; /* 검은색 밑줄 */
+    outline: none; /* 포커스 시 테두리 없애기 */
+    resize: none; /* 크기 조정 불가 */
+    overflow-y: hidden; /* 세로 스크롤을 숨김 */
+  }
+  textarea:hover {
+    border-bottom: 1px solid black;
+  }
+  .dropdown {
+    float: right;
+  }
+</style>
+<h3 style="background-color:white; padding:15px; width:100%; margin-bottom:10px; font-weight:bold;"><%= data[0].subject %></h3>
+<div style="padding:10px; height:50px;">
+  <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
+  <%- data[0].updated_at ? '<b>(수정됨)</b>':'' %>
+  <% if(data[0].upload && data[0].upload.length > 0) { %>
+  <div class="dropdown">
+    <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
+    </button>
+    <ul class="dropdown-menu">
+      <% let uploads = data[0].upload; %>
+      <% uploads.forEach(item => { %>
+        <li><a class="dropdown-item" href="<%= `/downloads/${item}` %>"><%= item %></a></li>
+      <% }) %>
+    </ul>
+  </div>
+  <% } %>
+</div>
+<div style="background-color:white; padding:15px; width:100%; margin-bottom:10px; white-space: pre-line;"><%= data[0].content %></div>
+<br>
+<button class="btn btn-light <%= authStatus.user_id?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
+<% if(data[0].user_id==authStatus.user_id) { %>
+<div class="float-end">
+  <a href="/boards/<%= id %>/edit">
+    <button type="button" class="btn btn-dark edit"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 수정</button>
+  </a>
+  <a>
+    <button class="btn btn-dark delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 삭제</button>
+  </a>
+</div>
+<% } %>
+<br><br>
+<div class="comments">
+<% comment.forEach(item => { %>
+  <div class="comment" id="<%= item.id %>" style="margin-top:10px;">
+    <div class="info" style="margin-top:10px;">
+      <span user_id="<%= item.user_id %>" style="padding-right:10px;"><b><%= item.username %></b></span>|
+      <span style="padding:0 10px 0 10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
+      <% if(authStatus.username==item.username) {%>
+      <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">수정</button>
+      <% } %>
+      <% if(authStatus.username==item.username) {%>
+      <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">삭제</button>
       <% } %>
     </div>
-    <div style="background-color:white; padding:15px; width:100%; margin-bottom:10px; white-space: pre-line;"><%= data[0].content %></div>
-    <br>
-    <button class="btn btn-light <%= user_id?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
-    <div class="float-end">
-      <a href="/report?id=<%= id %>" class="<%= data[0].user_id==user_id?'none':'' %>">
-        <button class="btn btn-sm btn-dark report"><i class="fa fa-bullhorn" aria-hidden="true"></i> 신고</button>
-      </a>
-      <a href="/boards/<%= id %>/edit" class="<%= data[0].user_id!=user_id?'none':'' %>">
-        <button type="button" class="btn btn-dark edit"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 수정</button>
-      </a>
-      <a class="<%= data[0].user_id!=user_id?'none':'' %>">
-        <button class="btn btn-dark delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 삭제</button>
-      </a>
-    </div>
-    <br><br>
-    <div class="comments">
-    <% comment.forEach(item => { %>
-      <div class="comment" id="<%= item.id %>" style="margin-top:10px;">
-        <div class="info" style="margin-top:10px;">
-          <span user_id="<%= item.user_id %>" style="padding-right:10px;"><b><%= item.username %></b></span>|
-          <span style="padding:0 10px 0 10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
-          <% if(authStatus.username==item.username) {%>
-          <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">수정</button>
-          <% } %>
-          <% if(authStatus.username==item.username) {%>
-          <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">삭제</button>
-          <% } %>
-        </div>
-        <div class="content" style="white-space: pre-line; min-height:40px;"><%= item.content %></div>
-      </div>
-    <% }); %>
-    </div>
-    <% if(authStatus) { %>
-    <div class="writeComment" style="margin-top:10px; height:300px;">
-      <textarea class="content" placeholder="댓글을 입력하세요"></textarea><br>
-      <button class="btn btn-sm btn-primary saveComment">저장</button>
-    </div>
-    <% } else { %> 
-      <h4><b>로그인 후 댓글 작성이 가능합니다.</b></h4> 
-    <% } %>
+    <div class="content" style="white-space: pre-line; min-height:40px;"><%= item.content %></div>
   </div>
-</body>
+<% }); %>
+</div>
+<% if(authStatus) { %>
+<div class="writeComment" style="margin-top:10px; height:300px;">
+  <textarea class="content" placeholder="댓글을 입력하세요"></textarea><br>
+  <button class="btn btn-sm btn-primary saveComment">저장</button>
+</div>
+<% } else { %> 
+  <h4><b>로그인 후 댓글 작성이 가능합니다.</b></h4> 
+<% } %>
 <script>
-  fetch("/header")
-    .then(response => response.text())
-    .then(data => document.querySelector(".__header__").innerHTML = data);
-
   <% let uploads = data[0].upload || ''; %>
   let deleteFile = <%- JSON.stringify(uploads) %>;
+  deleteFile = deleteFile.length > 0 ? deleteFile: ''; //빈 배열로 처리되면 오류나서 이렇게 처리함.
 
   $(".btn.delete").click( function(){
     if(confirm("정말 삭제하시겠습니까?")){

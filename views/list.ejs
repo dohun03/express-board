@@ -1,115 +1,77 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <title>Node JS</title>
-  <style>
-  html { height: 100%; }
-  body { height: 100%; margin: 0; padding: 0; }
-  .__body__ { padding: 120px 340px 40px 340px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
-  
-  /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
-  @media (max-width: 768px) {
-      .__body__ {
-          padding: 80px 20px; /* 작은 화면에서 패딩 조정 */
-      }
+<% 
+  let page_search = '';
+  if(search){
+    page_search = `search=${search}&`;
   }
-  .navbar {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      z-index: 1000;
-  }
-  .none {
-      display:none;
-  }
-  </style>
-</head>
-<body>
-  <% 
-    let page_search = '';
-    if(search){
-      page_search = `search=${search}&`;
-    }
-  %>
-  <div class="__header__"></div>
-  <div class="__body__">
-    <div class="info" style="width:100%; margin-bottom: 10px;">
-        <a href="/boards/new/edit"><button type="button" class="btn btn-dark" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
-        <button type="button" class="btn btn-light btn-sm view">
-          <!-- switch case문 오류 떠서 if문으로 바꿈. -->
-          <% if (view === 'asc') { %>
-            <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
-          <% } else if (view === 'desc') { %>
-            <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
-          <% } else { %>
-            <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
-          <% } %> 조회수
-        </button>   
-        <button type="button" class="btn btn-light btn-sm like">
-          <!-- switch case문 오류 떠서 if문으로 바꿈. -->
-          <% if (like === 'asc') { %>
-            <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
-          <% } else if (like === 'desc') { %>
-            <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
-          <% } else { %>
-            <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
-          <% } %> 좋아요
-        </button>        
-        <select class="form-select form-select-sm line" aria-label="Small select example" style="display:inline; width:100px;">
-          <%- selectOptionsHtml %>
-        </select>
-        <form action="/" style="display:inline; margin-left:10px; margin-right:10px;">
-          <input class="form-control me-2" name="search" style="max-width:300px;display:inline;" type="text" placeholder="제목을 입력하세요" value="<%=search%>">
-          <button class="btn btn-outline-success" type="submit">검색</button>
-        </form>
-        <div class="float-end" id="pagination-controls"></div>
-        <div class="float-end">
-          <span style="margin-right:10px;"><%= currentPage %> / <%= page_total %></span>
-          <a href="<%= currentPage == 1 ? '#' : `/?${page_search}page=${currentPage - 1}` %>"><button type="button" class="btn btn-dark" <%= currentPage == 1 ? 'disabled' : '' %>><i class="fa fa-arrow-left" aria-hidden="true"></i></button></a>
-          <a href="<%= page_total == currentPage ? '#' : `/?${page_search}page=${currentPage + 1}` %>"><button type="button" class="btn btn-dark" <%= page_total == currentPage ? 'disabled' : '' %>><i class="fa fa-arrow-right" aria-hidden="true"></i></button></a>
-      </div>
-    </div>
-    <table class="table table-hover" style="border: 1px solid #ccc;">
-        <col style="width:60%;"><col><col style="width:10%;"><col style="width:7%;"><col style="width:7%;">
-        <thead>
-          <tr>
-            <th scope="col">제목</th>
-            <th style="text-align:center;" scope="col">작성자</th>
-            <th style="text-align:center;" scope="col">작성일</th>
-            <th style="text-align:center;" scope="col">좋아요</th>
-            <th style="text-align:center;" scope="col">조회수</th>
-          </tr>
-        </thead>
-        <tbody class="table-group-divider">
-          <% data.forEach(item => { %>
-            <tr class="<%= item.user_id==authStatus.user_id?'table-primary':''%>">
-              <td>
-                <a style="display:block; color:black; text-decoration-line: none; width:100%;" href="/boards/<%= item.id %>">
-                  <%= item.subject %>
-                  <span style="color:blue;"> <%= item.comment_count ? '['+item.comment_count+']' : '' %> </span>
-                </a>
-              </td>
-              <td style="text-align:center;"><%= item.username %></td>
-              <td style="text-align:center;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 10) %></td>
-              <td style="text-align:center;"><%= item.like_count %></td>
-              <td style="text-align:center;"><%= item.view %></td>
-            </tr>
-          <% }); %>
-        </tbody>
-    </table>
+%>
+<div class="info" style="width:100%; margin-bottom: 10px;">
+    <a href="/boards/new/edit"><button type="button" class="btn btn-dark" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
+    <button type="button" class="btn btn-light btn-sm view">
+      <!-- switch case문 오류 떠서 if문으로 바꿈. -->
+      <% if (view === 'asc') { %>
+        <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
+      <% } else if (view === 'desc') { %>
+        <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
+      <% } else { %>
+        <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
+      <% } %> 조회수
+    </button>   
+    <button type="button" class="btn btn-light btn-sm like">
+      <!-- switch case문 오류 떠서 if문으로 바꿈. -->
+      <% if (like === 'asc') { %>
+        <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
+      <% } else if (like === 'desc') { %>
+        <i class="fa fa-sort-numeric-desc" aria-hidden="true" status="desc"></i>
+      <% } else { %>
+        <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
+      <% } %> 좋아요
+    </button>        
+    <select class="form-select form-select-sm line" aria-label="Small select example" style="display:inline; width:100px;">
+      <%- selectOptionsHtml %>
+    </select>
+    <form action="/" style="display:inline; margin-left:10px; margin-right:10px;">
+      <input class="form-control me-2" name="search" style="max-width:300px;display:inline;" type="text" placeholder="제목을 입력하세요" value="<%=search%>">
+      <button class="btn btn-outline-success" type="submit">검색</button>
+    </form>
+    <div class="float-end" id="pagination-controls"></div>
+    <div class="float-end">
+      <span style="margin-right:10px;"><%= currentPage %> / <%= page_total %></span>
+      <a href="<%= currentPage == 1 ? '#' : `/?${page_search}page=${currentPage - 1}` %>"><button type="button" class="btn btn-dark" <%= currentPage == 1 ? 'disabled' : '' %>><i class="fa fa-arrow-left" aria-hidden="true"></i></button></a>
+      <a href="<%= page_total == currentPage ? '#' : `/?${page_search}page=${currentPage + 1}` %>"><button type="button" class="btn btn-dark" <%= page_total == currentPage ? 'disabled' : '' %>><i class="fa fa-arrow-right" aria-hidden="true"></i></button></a>
   </div>
-</body>
+</div>
+<table class="table table-hover" style="border: 1px solid #ccc;">
+    <col style="width:60%;"><col><col style="width:10%;"><col style="width:7%;"><col style="width:7%;">
+    <thead>
+      <tr>
+        <th scope="col">제목</th>
+        <th style="text-align:center;" scope="col">작성자</th>
+        <th style="text-align:center;" scope="col">작성일</th>
+        <th style="text-align:center;" scope="col">좋아요</th>
+        <th style="text-align:center;" scope="col">조회수</th>
+      </tr>
+    </thead>
+    <tbody class="table-group-divider">
+      <% data.forEach(item => { %>
+        <tr class="<%= item.user_id==authStatus.user_id?'table-primary':''%>">
+          <td>
+            <a style="display:block; color:black; text-decoration-line: none; width:100%;" href="/boards/<%= item.id %>">
+              <%= item.subject %>
+              <span style="color:blue;"> <%= item.comment_count ? '['+item.comment_count+']' : '' %> </span>
+              <% if (item.upload && item.upload.length > 0) { %>
+                <span style="color:gray"><i class="fa fa-paperclip" aria-hidden="true"></i></span>
+              <% } %>
+            </a>
+          </td>
+          <td style="text-align:center;"><%= item.username %></td>
+          <td style="text-align:center;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 10) %></td>
+          <td style="text-align:center;"><%= item.like_count %></td>
+          <td style="text-align:center;"><%= item.view %></td>
+        </tr>
+      <% }); %>
+    </tbody>
+</table>
 <script>
-  fetch("/header")
-    .then(response => response.text())
-    .then(data => document.querySelector(".__header__").innerHTML = data);
-
   $(".line").on("change", function() {
     let line = $(this).val();
     $.ajax({

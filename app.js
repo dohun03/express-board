@@ -8,21 +8,21 @@ const session = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
-const hashPassword = require('./lib/bcrypt.js'); // 올바르게 가져오기
+const hashPassword = require('./lib/bcrypt.js');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public'))); // 정적 파일 제공
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // 업로드 파일 제공
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(session);
 app.use(cors());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use((req, res, next) => {
-  // 사용자의 IP 주소를 출력
   console.log('User IP:', req.ip);
   next();
 });
@@ -57,6 +57,38 @@ function authStatus(req, res) {
     return false;
   }
 }
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp.naver.com',
+  port: 465,
+  secure: true,
+  auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS 
+  }
+});
+
+app.post('/send-code', async (req, res) => {
+  const email = req.body.email;
+  console.log(email)
+  if (!email) return res.status(400).json({ error: "이메일을 입력하세요." });
+
+  const authCode = Math.floor(100000 + Math.random() * 900000).toString(); // 인증번호 생성
+
+  try {
+      await transporter.sendMail({
+          from: `"MyApp" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: "EX Community 이메일 인증번호",
+          text: `인증번호: ${authCode}`,
+      });
+
+      req.session.authCode = authCode;
+      res.send('인증번호 전송 완료');
+  } catch (error) {
+      res.status(500).send(error);
+  }
+});
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -427,7 +459,7 @@ app.delete('/comments', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  if( authStatus(req, res) ) {
+  if (authStatus(req, res)) {
     res.render('title', { body:'error', errorMessage:'이미 로그인 됐습니다!', authStatus: authStatus(req, res) })
   } else {
     res.render('title', { body:'login', authStatus: authStatus(req, res) })
@@ -442,7 +474,7 @@ app.post('/login', (req, res) => {
   }
 
   db.query(`SELECT id, username, password FROM tbl_user WHERE username=?`,[post.username], function(error, data) {
-    if(error){
+    if (error){
       res.status(500).send('Internal Server Error');
       return;
     }
@@ -451,17 +483,17 @@ app.post('/login', (req, res) => {
       bcrypt.compare(post.password, data[0].password, function(err, result) {
         if (result) { // 비밀번호가 일치하는 경우
           req.session.is_logined = true;
-          req.session.username = data[0].username;
           req.session.user_id = data[0].id;
+          req.session.username = data[0].username;
           req.session.save(() => {
-            res.json({ success: true });
+            res.send();
           })
         } else {
-          res.json({ success: false, message: '비밀번호가 맞지 않습니다.' });
+          res.status(401).send('비밀번호가 맞지 않습니다.');
         }
       })
     } else {
-      res.json({ success: false, message: '존재하지 않는 아이디입니다.' });
+      res.status(401).send('존재하지 않는 아이디입니다.');
     }
   });
 });
@@ -485,26 +517,31 @@ app.post('/signup', async (req, res) => {
     const patternUsername = /^[A-Za-z0-9가-힣]{2,12}$/;
     const patternPassword = /^[A-Za-z0-9]{4,20}$/;
 
-    if (!post.username || !post.password) {
-      return res.status(400).render('title', { body:'error', errorMessage: '아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
+    if (!post.email || !post.authCode || !post.username || !post.password) {
+      return res.status(400).send('빈 칸을 입력 해주세요.');
+    }
+
+    if (post.authCode !== req.session.authCode) {
+      return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
 
     if (!patternUsername.test(post.username) || !patternPassword.test(post.password)) {
-      return res.status(400).render('title', { body:'error', errorMessage: '조건에 맞게 아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
+      return res.status(400).send('조건에 맞게 아이디와 비밀번호를 입력해주세요.');
     }
 
     const hashedPassword = await hashPassword(post.password);
 
-    await db.promise().query(`INSERT INTO tbl_user (username, password) VALUES (?,?);`, [post.username, hashedPassword]);
+    await db.promise().query(`INSERT INTO tbl_user (username, password, email) VALUES (?,?,?);`, [post.username, hashedPassword, post.email]);
 
-    res.redirect('/login');
+    res.send('회원가입 성공!');
   } catch (err) {
-    res.status(500).render('title', { body:'error', errorMessage: '이미 존재하는 아이디입니다.', authStatus: authStatus(req, res) } );
+    console.log(err)
+    return res.status(500).send('이메일 또는 아이디가 이미 존재합니다.');
   }
 });
 
 app.get('/settings', (req, res) => {
-  if(!req.session.is_logined){
+  if (!req.session.is_logined) {
     res.status(500).render('title', { body:'error', errorMessage:'당신은 접근 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
     return;
   }

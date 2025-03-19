@@ -66,18 +66,11 @@
           username: $("#username").val(),
           password: $("#password").val()
         },
-        success: function(data) {
-          console.log(data)
-          if (data.success) {
-            window.location.href = '/';
-          } else {
-            alert(data.message);
-          }
+        success: function() {
+          window.location.href = '/';
         },
-        error: function() {
-          console.error('Error occurred');
-          alert('서버 오류가 발생했습니다. 다시 시도해주세요.');
-          window.location.href = '/login';
+        error: function(xhr, status, error) {
+          alert(xhr.responseText);
         }
       });
     });

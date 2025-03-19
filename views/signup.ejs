@@ -17,7 +17,7 @@
       display: block;
       margin-bottom: 5px;
   }
-  input[type="text"], input[type="password"] {
+  input[type="email"], input[type="text"], input[type="password"] {
       width: 100%;
       padding: 10px;
       border-radius: 5px;
@@ -38,16 +38,21 @@
 </style>
 <div class="container">
   <h3>회원가입</h3>
-  <div class="terms">
-  <ul>
-    <li>서비스에 액세스하거나 서비스를 사용함으로써 귀하는 본 약관을 준수할 것에 동의하게 됩니다.</li>
-  </ul>
-  </div>
   <hr>
-  <form action="/signup" method="POST">
+  <form id="signupForm" action="/signup" method="POST">
     <label for="agree"><input type="checkbox" id="agree" name="agree" required> 서비스 약관에 동의합니다.</label><br>
     <div class="form-group">
-      <label for="username">사용자 아이디</label>
+      <label for="email">이메일</label>
+      <input type="email" id="email" name="email" placeholder="이메일 주소를 입력하세요" required>
+    </div>
+    <div class="form-group">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="text" id="authcode" name="authcode" placeholder="인증번호를 입력하세요" required style="flex: 1;">
+        <button class="btn btn-primary send-code">인증번호 전송</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="username">아이디</label>
       <input type="text" id="username" name="username" pattern="[A-Za-z0-9가-힣]{2,12}" placeholder="영문과 한글, 숫자 사용, 최소 2자리 ~ 최대 12자리" required>
     </div>
     <div class="form-group">
@@ -58,3 +63,59 @@
   </form>
   <br>
 </div>
+<script>
+  $('.btn.send-code').on('click', function(event) {
+    const email = $("input[type=email]").val();
+
+    if(!email) {
+      alert("이메일을 입력하세요.");
+      return;
+    }
+
+    $(this).attr("disabled", true);
+    $(this).text("전송됨");
+
+    $.ajax({
+      type: 'POST',
+      url: '/send-code',
+      data: { email },
+      success: function(data) {
+        console.log(data)
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr.responseText)
+        alert('메일 서버 오류가 발생했습니다.');
+        window.location.href = '/signup';
+      }
+    });
+  });
+
+  $('#signupForm').on('submit', function(event) {
+    event.preventDefault(); // 폼의 기본 제출 동작을 막음
+
+    const email = $("input[name=email]").val();
+    const authCode = $("input[name=authcode]").val();
+    const username = $("input[name=username]").val();
+    const password = $("input[name=password]").val();
+
+    $(this).attr("disabled", true);
+
+    $.ajax({
+      type: 'POST',
+      url: '/signup',
+      data: {
+        email,
+        authCode,
+        username,
+        password
+      },
+      success: function(data) {
+        console.log(data)
+        document.location.href = '/';
+      },
+      error: function(xhr, status, error) {
+        alert(xhr.responseText);
+      }
+    });
+  });
+</script>

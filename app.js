@@ -63,30 +63,30 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS 
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
 app.post('/send-code', async (req, res) => {
   const email = req.body.email;
-  console.log(email)
+
   if (!email) return res.status(400).json({ error: "이메일을 입력하세요." });
 
   const authCode = Math.floor(100000 + Math.random() * 900000).toString(); // 인증번호 생성
 
   try {
-      await transporter.sendMail({
-          from: `"MyApp" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: "EX Community 이메일 인증번호",
-          text: `인증번호: ${authCode}`,
-      });
+    await transporter.sendMail({
+      from: `"MyApp" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "EX Community 이메일 인증번호",
+      text: `인증번호: ${authCode}`,
+    });
 
-      req.session.authCode = authCode;
-      res.send('인증번호 전송 완료');
+    req.session.authCode = authCode;
+    res.send('인증번호 전송 완료');
   } catch (error) {
-      res.status(500).send(error);
+    res.status(500).send(error);
   }
 });
 
@@ -137,13 +137,11 @@ app.post('/uploads', function (req, res) {
       if (err.code === 'LIMIT_FIELD_SIZE') {
         return res.status(413).send('총 업로드 크기가 너무 큽니다! (최대 50MB)');
       }
-      return res.status(400).send('파일 업로드 중 오류가 발생했습니다.');
+      return res.status(500).send('파일 업로드 중 오류가 발생했습니다.');
     } else if (err) {
-      // 기타 서버 오류 처리
       return res.status(500).json({ error: '서버 내부 오류 발생' });
     }
     
-    // 정상적으로 파일이 업로드된 경우
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: '파일이 업로드되지 않았습니다.' });
     }
@@ -225,7 +223,7 @@ app.get('/', (req, res) => {
   let where = '';
   let params = [];
   let search = req.query.search;
-  if(search){
+  if (search) {
     where += `WHERE subject LIKE ? `;
     params.push(`%${search}%`);
   }
@@ -282,7 +280,7 @@ app.get('/', (req, res) => {
     });
 
     let page_total = 0;
-    if(data.length > 0){
+    if (data.length > 0) {
       page_total = Math.ceil(parseInt(data[0]['total']) / line);
     }
 
@@ -316,8 +314,8 @@ app.get('/boards/:id', async (req, res) => {
 });
 
 app.get('/boards/:id/edit', (req, res) => {
-  if(!req.session.is_logined){
-    res.status(500).render('title', { body:'error', errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) });
+  if (!req.session.is_logined) {
+    res.status(403).render('title', { body:'error', errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) });
     return;
   }
 
@@ -329,8 +327,8 @@ app.get('/boards/:id/edit', (req, res) => {
       if (error) {
         return res.status(500).send('Internal Server Error');
       }
-      if(data[0].user_id!=user_id) {
-        return res.status(500).render('title', { body:'error', errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
+      if (data[0].user_id!=user_id) {
+        return res.status(403).render('title', { body:'error', errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
       }
       res.render('title', { body:'edit', data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
     });
@@ -374,14 +372,14 @@ app.delete('/boards/:id', (req, res) => {
       res.status(500).send('Internal Server Error');
       return;
     }
-    res.status(200).send('Delete success');
+    res.status(204).send('Delete success');
   });
 });
 
 app.post('/likes/:id', (req, res) => {
   const id = req.params.id;
   const user_id = authStatus(req,res).user_id;
-  if(user_id) {
+  if (user_id) {
     db.query(`INSERT INTO tbl_like(user_id,board_id) VALUES(?,?)`, [user_id, id], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
@@ -391,14 +389,14 @@ app.post('/likes/:id', (req, res) => {
       res.send('add');
     })
   } else {
-    res.status(500).send('회원만 추천 가능합니다.');
+    res.status(403).send('회원만 추천 가능합니다.');
   }
 });
 
 app.delete('/likes/:id', (req, res) => {
   const id = req.params.id;
   const user_id = authStatus(req,res).user_id;
-  if(user_id) {
+  if (user_id) {
     db.query(`DELETE FROM tbl_like WHERE user_id=? and board_id=?`, [user_id, id], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
@@ -407,7 +405,7 @@ app.delete('/likes/:id', (req, res) => {
       res.send('delete');
     });
   } else {
-    res.status(500).send('회원만 추천 가능합니다.');
+    res.status(403).send('회원만 추천 가능합니다.');
   }
 });
 
@@ -454,7 +452,7 @@ app.delete('/comments', (req, res) => {
       res.status(500).send('Internal Server Error');
       return;
     }
-    res.status(200).send('Delete success');
+    res.status(204).send('Delete success');
   });
 });
 
@@ -470,16 +468,16 @@ app.post('/login', (req, res) => {
   const post = req.body;
 
   if (!post.username || !post.password) {
-    return res.status(400).render('title', { body:'error', errorMessage: '아이디와 비밀번호를 입력해주세요.', authStatus: authStatus(req, res) });
+    return res.status(400).send('아이디와 비밀번호를 입력해주세요.');
   }
 
   db.query(`SELECT id, username, password FROM tbl_user WHERE username=?`,[post.username], function(error, data) {
-    if (error){
+    if (error) {
       res.status(500).send('Internal Server Error');
       return;
     }
 
-    if(data.length > 0){
+    if (data.length > 0) {
       bcrypt.compare(post.password, data[0].password, function(err, result) {
         if (result) { // 비밀번호가 일치하는 경우
           req.session.is_logined = true;
@@ -493,14 +491,14 @@ app.post('/login', (req, res) => {
         }
       })
     } else {
-      res.status(401).send('존재하지 않는 아이디입니다.');
+      res.status(404).send('존재하지 않는 아이디입니다.');
     }
   });
 });
 
 app.get('/logout', (req, res) => {
   req.session.destroy((err)=>{
-    if(err)
+    if (err)
       throw err;
 
     res.redirect('/')
@@ -522,7 +520,7 @@ app.post('/signup', async (req, res) => {
     }
 
     if (post.authCode !== req.session.authCode) {
-      return res.status(400).send('인증번호가 일치하지 않습니다.');
+      return res.status(401).send('인증번호가 일치하지 않습니다.');
     }
 
     if (!patternUsername.test(post.username) || !patternPassword.test(post.password)) {
@@ -542,7 +540,7 @@ app.post('/signup', async (req, res) => {
 
 app.get('/settings', (req, res) => {
   if (!req.session.is_logined) {
-    res.status(500).render('title', { body:'error', errorMessage:'당신은 접근 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
+    res.status(403).render('title', { body:'error', errorMessage:'당신은 접근 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
     return;
   }
 
@@ -562,7 +560,7 @@ app.patch('/settings/username', (req, res) => {
   }
 
   db.query(`UPDATE tbl_user SET username = ? WHERE id=?`,[post.username, authStatus(req, res).user_id], function(error, data) {
-    if(error){
+    if (error) {
       res.status(500).send('아이디가 이미 존재합니다!');
       return;
     }
@@ -589,15 +587,15 @@ app.patch('/settings/password', async (req, res) => {
     
     const [data] = await db.promise().query(`SELECT id, username, password FROM tbl_user WHERE id=?`,[user_id]);
   
-    if(data.length === 0) {
+    if (data.length === 0) {
       return res.status(404).send('존재하지 않는 아이디입니다.');
     }
 
     const match = await bcrypt.compare(post.password, data[0].password);
     console.log(match)
   
-    if(!match) {
-      return res.status(400).send('비밀번호가 일치하지 않습니다.');
+    if (!match) {
+      return res.status(401).send('비밀번호가 일치하지 않습니다.');
     }
   
     const newPassword = await hashPassword(post.newPassword);
@@ -615,13 +613,13 @@ app.post('/cookie', (req, res) => {
   const { line, view, like } = req.body;
   const filter = ['asc', 'desc', 'default'];
   
-  if(Number.isInteger(parseInt(line)))
+  if (Number.isInteger(parseInt(line)))
     res.cookie('line', line, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
-  if(filter.includes(view))
+  if (filter.includes(view))
     res.cookie('view', view, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
-  if(filter.includes(like))
+  if (filter.includes(like))
     res.cookie('like', like, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
 
   res.send('Cookie set');

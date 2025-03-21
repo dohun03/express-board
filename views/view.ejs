@@ -134,7 +134,7 @@
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
-        alert("예기치 못한 에러가 발생 했습니다.")
+        alert(xhr.responseText);
       }
     });
   });

@@ -12,7 +12,7 @@
   <style>
   html { height: 100%; }
   body { height: 100%; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
-  .__body__ { padding: 120px 340px 40px 340px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
+  .__body__ { padding: 120px 400px 40px 400px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
   
   /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
   @media (max-width: 768px) {
@@ -46,9 +46,11 @@
                 <i class="fa fa-user-circle-o" aria-hidden="true"></i> <b><%= authStatus.username %></b>님
               </div>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                <li><a class="dropdown-item" href="/settings"><i class="fa fa-cog" aria-hidden="true"></i> 설정</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/logout"><i class="fa fa-sign-out" aria-hidden="true"></i> 로그아웃</a></li>
+                <% if(authStatus.admin){ %> 
+                <li><a class="dropdown-item admin" href="/admin"><i class="fa fa-cog" aria-hidden="true"></i> 관리자</a></li>
+                <% } %>
+                <li><a class="dropdown-item" href="/settings"><i class="fa fa-user-circle-o" aria-hidden="true"></i> 설정</a></li>
+                <li><a class="dropdown-item logout" href="#"><i class="fa fa-sign-out" aria-hidden="true"></i> 로그아웃</a></li>
               </ul>
             </li>
             <% } else { %>
@@ -64,5 +66,20 @@
   <div class="__body__">
     <%- include(body) %>
   </div>
+  <script>
+    $('.logout').on('click', function() {
+      $(this).attr("disabled", true);
+
+      $.ajax({
+        type: 'POST',
+        url: '/logout',
+        success: function() {
+          document.location.href = '/';
+        },
+        error: function() {
+        }
+      });
+    });
+  </script>
 </body>
 </html>

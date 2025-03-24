@@ -39,7 +39,7 @@
 <div class="container">
   <h3>회원가입</h3>
   <hr>
-  <form id="signupForm" action="/signup" method="POST">
+  <form id="signupForm" action="/users" method="POST">
     <label for="agree"><input type="checkbox" id="agree" name="agree" required> 서비스 약관에 동의합니다.</label><br>
     <div class="form-group">
       <label for="email">이메일</label>
@@ -102,7 +102,7 @@
 
     $.ajax({
       type: 'POST',
-      url: '/signup',
+      url: '/users',
       data: {
         email,
         authCode,

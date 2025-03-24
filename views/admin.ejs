@@ -1,0 +1,63 @@
+<div class="info" style="width:100%; margin-bottom: 10px;">
+  <button class="btn btn-primary">계정 생성</button>
+</div>
+<table class="table table-hover list" style="border: 1px solid #ccc;">
+  <col style="width:10%;"><col style="width:30%;"><col><col style="width:15%;"><col style="width:15%;"><col style="width:5%;">
+  <thead>
+    <tr>
+      <th>NO.</th>
+      <th>아이디</th>
+      <th>이메일</th>
+      <th style="text-align:center;">가입일</th>
+      <th style="text-align:center;">상태</th>
+      <th style="text-align:center;"></th>
+    </tr>
+  </thead>
+  <tbody class="table-group-divider">
+    <% data.forEach(item => { %>
+      <tr class="user" style="cursor: pointer">
+        <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.id%></td>
+        <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.username%></td>
+        <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.email%></td>
+        <td data-bs-toggle="modal" data-bs-target="#exampleModal" style="text-align:center;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 10) %></td>
+        <td data-bs-toggle="modal" data-bs-target="#exampleModal" style="text-align:center;">기본</td>
+        <td style="text-align:center;">
+          <div class="dropdown">
+            <button class="btn btn-dark btn-sm dropdown-toggle" id="dropdownMenuButton" data-bs-toggle="dropdown" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;"></button>
+            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+              <li><a class="dropdown-item" href="#">이용 정지</a></li>
+              <li><a class="dropdown-item" href="#">관리 권한 부여</a></li>
+              <li><a class="dropdown-item" href="#" style="color:red">계정 삭제</a></li>
+            </ul>
+          </div>
+        </td>
+      </tr>
+    <% });%>
+  </tbody>
+</table>
+<!-- Modal -->
+<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">사용자 정보</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        아직 개발 중인 기능입니다.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // $("table.list tbody tr").on("click", function() {
+    
+  // });
+  $("table.list tbody tr").on("click", function() {
+    
+  });
+</script>

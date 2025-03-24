@@ -68,7 +68,7 @@
     const username = $("input.username").val();
 
     $.ajax({
-      url: '/settings/username',
+      url: '/users/username',
       method: 'PATCH',
       data: { 
         username
@@ -92,7 +92,7 @@
 
     if(newPassword === confirmPassword){
       $.ajax({
-        url: '/settings/password',
+        url: '/users/password',
         method: 'PATCH',
         data: { 
           password,

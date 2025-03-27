@@ -76,7 +76,7 @@
     font-size: 16px;
   }
 </style>
-<% if(data) { %>
+<% if (data) { %>
 <input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
 <textarea class="form-control content" style="height:80%;"><%= data[0].content %></textarea>
 <% } else { %>
@@ -93,7 +93,7 @@
     <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">
     <!-- 선택된 파일 리스트 표시 -->
     <ul class="file-list">
-    <% if(data && data[0].upload) { %>
+    <% if (data && data[0].upload) { %>
       <% let uploads = data[0].upload %>
       <% uploads.forEach(item => { %>
         <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
@@ -131,18 +131,18 @@
     });
 
     fileList.on("click", ".delete-icon", function() {
-      if(confirm("정말 삭제하시겠습니까?")){
+      if (confirm("정말 삭제하시겠습니까?")) {
         const listItem = $(this).parent();
         const addedFile = listItem.text().replace("✖", "").trim(); // 새로 추가된 삭제할 파일의 이름.
         const existedFile = $(this).closest('li').children('.file-name').text(); // 기존에 있던 삭제할 파일의 이름.
         selectedFiles = selectedFiles.filter(file => file !== addedFile);
-        if(existedFile){
+        if (existedFile) {
           $.ajax({
             url: '/uploads',
             method: 'DELETE',
             data: {
               id: '<%=id%>',
-              file: existedFile
+              files: existedFile
             },
             success: function(response) {
               console.log('파일 삭제 성공:', response);
@@ -167,12 +167,18 @@
 
     $('.save').click(function(e) {
       e.preventDefault();
-      $(this).attr("disabled", true); // 도배 예방
-      $(this).text("저장 중..");
 
       let subject = $('.subject').val();
       let content = $('.content').val();
       let url, method;
+
+      if (!subject || !content) {
+        alert("제목과 내용을 입력해주세요.");
+        return;
+      }
+
+      $(this).attr("disabled", true); // 도배 예방
+      $(this).text("저장 중..");
       
       if ('<%=status%>' === 'update') {
         url = '/boards/<%=id%>';
@@ -197,7 +203,7 @@
           }
 
 
-          if(selectedFiles.length > 0){
+          if (selectedFiles.length > 0) {
             $.ajax({
               url: '/uploads',
               method: 'POST',
@@ -218,6 +224,7 @@
         },
         error: function(xhr, status, error) {
           console.log('error', error);
+          alert(xhr.responseText);
         }
       });
     });

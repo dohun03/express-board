@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const iconv = require('iconv-lite');
-const session = require('./lib/session.js');
+const { sessionMiddleware, redisClient } = require('./lib/session.js');
 const db = require('./lib/db.js');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
@@ -17,10 +17,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(session);
+app.use(sessionMiddleware);
 app.use(cors());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+require("dotenv").config();
 
 app.use((req, res, next) => {
   console.log('User IP:', req.ip);
@@ -47,10 +49,10 @@ function formatDate(format) {
 };
 
 function authStatus(req, res) {
-  if (req.session.is_logined) {
+  if (req.session.isLogined) {
     return { 
-      is_logined: true,
-      user_id: req.session.user_id,
+      isLogined: true,
+      userId: req.session.userId,
       username: req.session.username,
       admin: req.session.admin
     }
@@ -70,7 +72,7 @@ const transporter = nodemailer.createTransport({
 });
 
 app.post('/send-code', async (req, res) => {
-  const email = req.body.email;
+  const { email } = req.body;
 
   if (!email) return res.status(400).json({ error: "이메일을 입력하세요." });
 
@@ -147,7 +149,7 @@ app.post('/uploads', function (req, res) {
       return res.status(400).json({ error: '파일이 업로드되지 않았습니다.' });
     }
 
-    const id = req.body.id;
+    const { id } = req.body;
     const filenames = req.files.map(file => file.filename); // 파일명 배열
 
     let sqlQuery = `UPDATE tbl_board SET upload = CASE 
@@ -166,8 +168,8 @@ app.post('/uploads', function (req, res) {
 });
 
 app.delete('/uploads', async function (req, res) {
-  const id = req.body.id;
-  let files = req.body.file;
+  const { id, files } = req.body;
+  console.log(id, files);
 
   if (!files) {
     return res.status(400).json({ error: '삭제할 파일이 없습니다.' });
@@ -292,7 +294,7 @@ app.get('/', (req, res) => {
 app.get('/boards/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const user_id = req.session.user_id;
+    const userId = req.session.userId;
 
     // 쿼리 순차 실행 -> 병렬 실행(한번에 실행)
     const [[like], [comment], [data]] = await Promise.all([
@@ -304,7 +306,7 @@ app.get('/boards/:id', async (req, res) => {
     if (data && data.length > 0) {
       let view = data[0].view + 1;
       await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
-      let active = like.some((value) => value.user_id === user_id);
+      let active = like.some((value) => value.user_id === userId);
       res.render('title', { body:'view', data, id, active, like, comment, authStatus: authStatus(req, res) });
     } else {
       res.status(404).send('요청하신 게시글을 찾을 수 없습니다.');
@@ -315,33 +317,38 @@ app.get('/boards/:id', async (req, res) => {
 });
 
 app.get('/boards/:id/edit', (req, res) => {
-  if (!req.session.is_logined) {
+  if (!req.session.isLogined) {
     res.status(403).render('title', { body:'error', errorMessage:'당신은 작성 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) });
     return;
   }
 
   const id = req.params.id != 'new' ? req.params.id : '';
-  const user_id = req.session.user_id;
+  const userId = req.session.userId;
   
   if (id) {
     db.query(`SELECT * FROM tbl_board where id=?`, [id], function(error, data) {
       if (error) {
         return res.status(500).send('Internal Server Error');
       }
-      if (data[0].user_id!=user_id) {
+      if (data[0].user_id!=userId) {
         return res.status(403).render('title', { body:'error', errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
       }
-      res.render('title', { body:'edit', data, id, user_id, status: 'update', authStatus: authStatus(req, res) });
+      res.render('title', { body:'edit', data, id, userId, status: 'update', authStatus: authStatus(req, res) });
     });
   } else {
-    res.render('title', { body:'edit', data:'', id, user_id, status: 'create', authStatus: authStatus(req, res) });
+    res.render('title', { body:'edit', data:'', id, userId, status: 'create', authStatus: authStatus(req, res) });
   }
 });
 
 app.post('/boards', (req, res) => {
-  const post = req.body;
-  const user_id = req.session.user_id;
-  db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [user_id, post.subject, post.content], function(error, data) {
+  const { subject, content } = req.body;
+  const userId = req.session.userId;
+
+  if (!subject || !content) {
+    return res.status(400).send('제목과 내용을 입력해주세요.');
+  }
+
+  db.query(`INSERT INTO tbl_board (user_id, subject, content) VALUES (?,?,?);`, [userId, subject, content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -351,14 +358,19 @@ app.post('/boards', (req, res) => {
 });
 
 app.patch('/boards/:id', (req, res) => {
-  const id = req.params.id
-  const post = req.body;
-  const user_id = req.session.user_id;
+  const id = req.params.id;
+  const { subject, content } = req.body;
+  const userId = req.session.userId;
   const date = formatDate('db');
-  db.query(`UPDATE tbl_board SET subject=?, content=?, updated_at=? where id=? and user_id=?`, [post.subject, post.content, date, id, user_id], function(error, data) {
+
+  if (!subject || !content) {
+    return res.status(400).send('제목과 내용을 입력해주세요.');
+  }
+
+  db.query(`UPDATE tbl_board SET subject=?, content=?, updated_at=? where id=? and user_id=?`, [subject, content, date, id, userId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
-      console.log(error)
+      console.log(error);
       return;
     }
     res.send();
@@ -367,8 +379,8 @@ app.patch('/boards/:id', (req, res) => {
 
 app.delete('/boards/:id', (req, res) => {
   const id = req.params.id;
-  const user_id = req.session.user_id;
-  db.query(`DELETE FROM tbl_board where id=? and user_id=?`, [id, user_id], function(error, data) {
+  const userId = req.session.userId;
+  db.query(`DELETE FROM tbl_board where id=? and user_id=?`, [id, userId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -379,9 +391,9 @@ app.delete('/boards/:id', (req, res) => {
 
 app.post('/likes/:id', (req, res) => {
   const id = req.params.id;
-  const user_id = req.session.user_id;
-  if (user_id) {
-    db.query(`INSERT INTO tbl_like(user_id,board_id) VALUES(?,?)`, [user_id, id], function(error, data) {
+  const userId = req.session.userId;
+  if (userId) {
+    db.query(`INSERT INTO tbl_like(user_id,board_id) VALUES(?,?)`, [userId, id], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
         console.log(error);
@@ -396,9 +408,9 @@ app.post('/likes/:id', (req, res) => {
 
 app.delete('/likes/:id', (req, res) => {
   const id = req.params.id;
-  const user_id = req.session.user_id;
-  if (user_id) {
-    db.query(`DELETE FROM tbl_like WHERE user_id=? and board_id=?`, [user_id, id], function(error, data) {
+  const userId = req.session.userId;
+  if (userId) {
+    db.query(`DELETE FROM tbl_like WHERE user_id=? and board_id=?`, [userId, id], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
         return;
@@ -411,9 +423,9 @@ app.delete('/likes/:id', (req, res) => {
 });
 
 app.post('/comments', (req, res) => {
-  const post = req.body;
-  const user_id = req.session.user_id;
-  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [post.board_id, user_id, post.content], function(error, data) {
+  const { board_id, content } = req.body;
+  const userId = req.session.userId;
+  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [board_id, userId, content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
@@ -433,9 +445,9 @@ app.post('/comments', (req, res) => {
 });
 
 app.patch('/comments', (req, res) => {
-  const post = req.body;
-  const user_id = req.session.user_id;
-  db.query(`UPDATE tbl_comment SET content=? where id=? and user_id=?`, [post.content, post.id, user_id], function(error, data) {
+  const { id, content } = req.body;
+  const userId = req.session.userId;
+  db.query(`UPDATE tbl_comment SET content=? where id=? and user_id=?`, [content, id, userId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
@@ -446,9 +458,9 @@ app.patch('/comments', (req, res) => {
 });
 
 app.delete('/comments', (req, res) => {
-  const post = req.body;
-  const user_id = req.session.user_id;
-  db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [post.id, user_id], function(error, data) {
+  const { id } = req.body;
+  const userId = req.session.userId;
+  db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [id, userId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -458,7 +470,7 @@ app.delete('/comments', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  if (req.session.is_logined) {
+  if (req.session.isLogined) {
     res.render('title', { body:'error', errorMessage:'이미 로그인 됐습니다!', authStatus: authStatus(req, res) })
   } else {
     res.render('title', { body:'login', authStatus: authStatus(req, res) })
@@ -466,38 +478,43 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const post = req.body;
+  const { username, password } = req.body;
 
-  if (!post.username || !post.password) {
+  if (!username || !password) {
     return res.status(400).send('아이디와 비밀번호를 입력해주세요.');
   }
 
-  db.query(`SELECT id, username, password, admin FROM tbl_user WHERE username=?`,[post.username], function(error, data) {
+  db.query(`SELECT id, username, password, admin FROM tbl_user WHERE username=?`,[username], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
     }
 
     if (data.length > 0) {
-      bcrypt.compare(post.password, data[0].password, function(err, result) {
+      bcrypt.compare(password, data[0].password, function(err, result) {
         if (err) {
           res.status(500).send('비밀번호 확인 중 오류가 발생했습니다.');
           return;
         }
 
         if (result) { // 비밀번호가 일치하는 경우
-          req.session.is_logined = true;
-          req.session.user_id = data[0].id;
+          req.session.isLogined = true;
+          req.session.userId = data[0].id;
           req.session.username = data[0].username;
           req.session.admin = data[0].admin;
-          req.session.save((err) => {
+          req.session.save(async (err) => {
             if (err) {
-              console.log(err)
-              res.status(500).send('세션 저장 중 오류가 발생했습니다.');
-              return;
+              console.error("세션 저장 중 오류:", err);
+              return res.status(500).send("세션 저장 중 오류가 발생했습니다.");
             }
-            res.status(200).send('로그인에 성공했습니다.');
-          })
+
+            try {
+              await redisClient.set(`user:${data[0].id}`, req.sessionID, { EX: 86400 });
+              res.status(200).send();
+            } catch (error) {
+              res.status(500).send("세션 저장 중 오류가 발생했습니다.");
+            }
+          });
         } else {
           res.status(401).send('비밀번호가 맞지 않습니다.');
         }
@@ -509,16 +526,24 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-  req.session.destroy((err)=>{
+  const userId = req.session.userId;
+
+  req.session.destroy(async (err)=>{
     if (err)
       throw err;
 
-    res.status(200).send();
+      try {
+        await redisClient.del(`user:${userId}`);
+        res.status(200).send();
+      } catch (error) {
+        console.error(error)
+        res.status(500).send("세션 삭제 중 오류가 발생했습니다.");
+      }
   })
 });
 
 app.get('/signup', (req, res) => {
-  if (req.session.is_logined) {
+  if (req.session.isLogined) {
     res.status(403).render('title', { body:'error', errorMessage:'이미 로그인이 되어있습니다.', authStatus: authStatus(req, res) } );
     return;
   }
@@ -527,7 +552,7 @@ app.get('/signup', (req, res) => {
 });
 
 app.get('/settings', (req, res) => {
-  if (!req.session.is_logined) {
+  if (!req.session.isLogined) {
     res.status(403).render('title', { body:'error', errorMessage:'당신은 접근 권한이 없습니다. 로그인 후 이용 가능합니다.', authStatus: authStatus(req, res) } );
     return;
   }
@@ -536,7 +561,7 @@ app.get('/settings', (req, res) => {
 });
 
 app.get('/admin', (req, res) => {
-  if (!req.session.is_logined || !req.session.admin) {
+  if (!req.session.isLogined || !req.session.admin) {
     res.status(403).render('title', { body:'error', errorMessage:'당신은 관리자 권한이 없습니다.', authStatus: authStatus(req, res) } );
     return;
   }
@@ -553,81 +578,89 @@ app.get('/admin', (req, res) => {
 
 app.post('/users', async (req, res) => {
   try {
-    const post = req.body;
+    const { email, authCode, username, password } = req.body;
     const patternUsername = /^[A-Za-z0-9가-힣]{2,12}$/;
     const patternPassword = /^[A-Za-z0-9]{4,20}$/;
 
-    if (!post.email || !post.authCode || !post.username || !post.password) {
+    if (!email || !authCode || !username || !password) {
       return res.status(400).send('빈 칸을 입력 해주세요.');
     }
 
-    if (post.authCode !== req.session.authCode) {
+    if (authCode !== req.session.authCode) {
       return res.status(401).send('인증번호가 일치하지 않습니다.');
     }
 
-    if (!patternUsername.test(post.username) || !patternPassword.test(post.password)) {
+    if (!patternUsername.test(username) || !patternPassword.test(password)) {
       return res.status(400).send('조건에 맞게 아이디와 비밀번호를 입력해주세요.');
     }
 
-    const hashedPassword = await hashPassword(post.password);
+    const hashedPassword = await hashPassword(password);
 
-    await db.promise().query(`INSERT INTO tbl_user (username, password, email) VALUES (?,?,?);`, [post.username, hashedPassword, post.email]);
+    await db.promise().query(`INSERT INTO tbl_user (username, password, email) VALUES (?,?,?);`, [username, hashedPassword, email]);
 
-    res.send('회원가입 성공!');
+    res.status(200).send("회원가입에 성공했습니다.");
   } catch (err) {
     console.log(err)
     return res.status(500).send('이메일 또는 아이디가 이미 존재합니다.');
   }
 });
 
-app.patch('/users/username', (req, res) => {
-  const post = req.body;
+app.patch('/users/:id/username', (req, res) => {
+  const { id } = req.params;
+  const { username } = req.body;
   const patternUsername = /^[A-Za-z0-9가-힣]{2,12}$/;
-  const user_id = req.session.user_id;
 
-  if (!post.username) {
+  if (id===req.session.userId) {
+    return res.status(400).send('고유 아이디 값이 다릅니다.');
+  }
+
+  if (!username) {
     return res.status(400).send('아이디를 입력해주세요.');
   }
 
-  if (!patternUsername.test(post.username)) {
+  if (!patternUsername.test(username)) {
     return res.status(400).send('조건에 맞게 아이디를 입력해주세요.');
   }
 
-  db.query(`UPDATE tbl_user SET username = ? WHERE id=?`,[post.username, user_id], function(error, data) {
+  db.query(`UPDATE tbl_user SET username = ? WHERE id=?`,[username, id], function(error, data) {
     if (error) {
       res.status(500).send('아이디가 이미 존재합니다!');
       return;
     }
-    req.session.username = post.username;
+    req.session.username = username;
     req.session.save(() => {
       res.send('아이디가 변경 되었습니다!');
     });
   });
 });
 
-app.patch('/users/password', async (req, res) => {
+app.patch('/users/:id/password', async (req, res) => {
   try {
-    const post = req.body;
-    const user_id = req.session.user_id;
+    const { id } = req.params;
+    let { password, newPassword } = req.body;
     const patternPassword = /^[A-Za-z0-9]{4,20}$/;
 
-    if (!post.password) {
+    if (id===req.session.userId) {
+      return res.status(400).send('고유 아이디 값이 다릅니다.');
+    }
+
+    if (!password) {
       return res.status(400).send('비밀번호를 입력해주세요.');
     }
   
-    if (!patternPassword.test(post.password)) {
+    if (!patternPassword.test(password)) {
       return res.status(400).send('조건에 맞게 비밀번호를 입력해주세요.');
     }
     
     // 관리자는 비밀번호 검증 필요 X
     if (!req.session.admin) {
-      const [data] = await db.promise().query(`SELECT id, username, password FROM tbl_user WHERE id=?`,[user_id]);
+      const [data] = await db.promise().query(`SELECT id, username, password FROM tbl_user WHERE id=?`,[id]);
   
       if (data.length === 0) {
         return res.status(404).send('존재하지 않는 아이디입니다.');
       }
   
-      const match = await bcrypt.compare(post.password, data[0].password);
+      const match = await bcrypt.compare(password, data[0].password);
       console.log(match)
     
       if (!match) {
@@ -635,13 +668,40 @@ app.patch('/users/password', async (req, res) => {
       }
     }
   
-    const newPassword = await hashPassword(post.newPassword);
+    newPassword = await hashPassword(newPassword);
 
-    await db.promise().query(`UPDATE tbl_user SET password = ? WHERE id=?`,[newPassword, user_id]);
+    await db.promise().query(`UPDATE tbl_user SET password = ? WHERE id=?`,[newPassword, id]);
 
     res.send('비밀번호가 변경 되었습니다!');
   } catch (err) {
     console.log(err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+app.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username } = req.body;
+  
+    if (!id) {
+      return res.status(400).send('아이디를 입력해주세요.');
+    }
+  
+    // 관리자거나, 본인 인증이 되거나
+    if (!req.session.admin || id!==req.session.userId) {
+      return res.status(403).send('당신은 관리자 권한이 없습니다.');
+    }
+  
+    await db.promise().query(`DELETE FROM tbl_user WHERE id=?`,[id]);
+
+    const sessionId = await redisClient.get(`user:${id}`);
+
+    await redisClient.del(`sess:${sessionId}`);
+
+    res.status(200).send('아이디가 삭제 되었습니다.');
+  } catch (error) {
+    console.log(error);
     res.status(500).send('Internal Server Error');
   }
 });

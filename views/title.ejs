@@ -40,13 +40,13 @@
           </a>
           <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-            <% if(authStatus){ %>
+            <% if (authStatus) { %>
             <li class="nav-item dropdown">
               <div class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fa fa-user-circle-o" aria-hidden="true"></i> <b><%= authStatus.username %></b>님
               </div>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                <% if(authStatus.admin){ %> 
+                <% if (authStatus.admin) { %> 
                 <li><a class="dropdown-item admin" href="/admin"><i class="fa fa-cog" aria-hidden="true"></i> 관리자</a></li>
                 <% } %>
                 <li><a class="dropdown-item" href="/settings"><i class="fa fa-user-circle-o" aria-hidden="true"></i> 설정</a></li>

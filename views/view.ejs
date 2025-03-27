@@ -23,7 +23,7 @@
 <div style="padding:10px; height:50px;">
   <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toISOString().replace('T', ' ').substring(0, 19) %>
   <%- data[0].updated_at ? '<b>(수정됨)</b>':'' %>
-  <% if(data[0].upload && data[0].upload.length > 0) { %>
+  <% if (data[0].upload && data[0].upload.length > 0) { %>
   <div class="dropdown">
     <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
       <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
@@ -39,8 +39,8 @@
 </div>
 <div style="background-color:white; padding:15px; width:100%; margin-bottom:10px; white-space: pre-line;"><%= data[0].content %></div>
 <br>
-<button class="btn btn-light <%= authStatus.user_id?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
-<% if(data[0].user_id==authStatus.user_id) { %>
+<button class="btn btn-light <%= authStatus.userId?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
+<% if (data[0].user_id==authStatus.userId) { %>
 <div class="float-end">
   <a href="/boards/<%= id %>/edit">
     <button type="button" class="btn btn-dark edit"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 수정</button>
@@ -51,16 +51,16 @@
 </div>
 <% } %>
 <br><br>
-<div class="comments">
+<div class="comments" style="margin-bottom:30px;">
 <% comment.forEach(item => { %>
   <div class="comment" id="<%= item.id %>" style="margin-top:10px;">
     <div class="info" style="margin-top:10px;">
       <span user_id="<%= item.user_id %>" style="padding-right:10px;"><b><%= item.username %></b></span>|
       <span style="padding:0 10px 0 10px;"><%= item.created_at.toISOString().replace('T', ' ').substring(0, 19)  %></span>
-      <% if(authStatus.username==item.username) {%>
+      <% if (authStatus.username==item.username) {%>
       <button type="button" class="btn btn-info editComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">수정</button>
       <% } %>
-      <% if(authStatus.username==item.username) {%>
+      <% if (authStatus.username==item.username) {%>
       <button type="button" class="btn btn-danger deleteComment" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">삭제</button>
       <% } %>
     </div>
@@ -68,13 +68,13 @@
   </div>
 <% }); %>
 </div>
-<% if(authStatus) { %>
+<% if (authStatus) { %>
 <div class="writeComment" style="margin-top:10px; height:300px;">
   <textarea class="content" placeholder="댓글을 입력하세요"></textarea><br>
   <button class="btn btn-sm btn-primary saveComment">저장</button>
 </div>
 <% } else { %> 
-  <h4><b>로그인 후 댓글 작성이 가능합니다.</b></h4> 
+  <h4><b>*로그인 후 댓글 작성이 가능합니다.*</b></h4> 
 <% } %>
 <script>
   <% let uploads = data[0].upload || ''; %>
@@ -82,12 +82,12 @@
   deleteFile = deleteFile.length > 0 ? deleteFile: ''; //빈 배열로 처리되면 오류나서 이렇게 처리함.
 
   $(".btn.delete").click( function(){
-    if(confirm("정말 삭제하시겠습니까?")){
+    if (confirm("정말 삭제하시겠습니까?")) {
       $.ajax({
         url: '/boards/<%=id%>',
         method: 'DELETE',
         success: function(response) {
-          if(deleteFile){
+          if (deleteFile) {
             $.ajax({
               url: '/uploads',
               method: 'DELETE',
@@ -117,7 +117,7 @@
 
   $(".btn.like").click( function(){
     let status;
-    if( $(this).hasClass("active") ){
+    if ( $(this).hasClass("active") ) {
       status = 'DELETE'
       $(this).find("span").text( parseInt($(this).find("span").text()) - 1 )
     } else {
@@ -221,7 +221,7 @@
   });
 
   $(".comments").on("click", ".btn.deleteComment", function() {
-    if(confirm("정말 삭제하시겠습니까?")){
+    if (confirm("정말 삭제하시겠습니까?")) {
       const commentElement = $(this).closest(".comment");
       const id = commentElement.attr("id");
       $.ajax({

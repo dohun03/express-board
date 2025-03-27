@@ -65,10 +65,11 @@
 </div>
 <script>
   $(".btn.username").on("click", function() {
+    const userId = '<%=authStatus.userId%>';
     const username = $("input.username").val();
 
     $.ajax({
-      url: '/users/username',
+      url: `/users/${userId}/username`,
       method: 'PATCH',
       data: { 
         username
@@ -86,13 +87,14 @@
   });
 
   $(".btn.password").on("click", function() {
+    const userId = '<%=authStatus.userId%>';
     const password = $("input.password").val();
     const newPassword = $("input.new-password").val();
     const confirmPassword = $("input.confirm-password").val();
 
-    if(newPassword === confirmPassword){
+    if (newPassword === confirmPassword) {
       $.ajax({
-        url: '/users/password',
+        url: `/users/${userId}/password`,
         method: 'PATCH',
         data: { 
           password,

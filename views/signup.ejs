@@ -67,7 +67,7 @@
   $('.btn.send-code').on('click', function(event) {
     const email = $("input[type=email]").val();
 
-    if(!email) {
+    if (!email) {
       alert("이메일을 입력하세요.");
       return;
     }
@@ -109,9 +109,9 @@
         username,
         password
       },
-      success: function(data) {
-        console.log(data)
-        document.location.href = '/';
+      success: function(responseText) {
+        alert(responseText);
+        document.location.href = '/login';
       },
       error: function(xhr, status, error) {
         alert(xhr.responseText);

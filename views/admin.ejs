@@ -15,7 +15,7 @@
   </thead>
   <tbody class="table-group-divider">
     <% data.forEach(item => { %>
-      <tr class="user" style="cursor: pointer">
+      <tr class="user" user_id="<%=item.id%>" style="cursor: pointer">
         <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.id%></td>
         <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.username%></td>
         <td data-bs-toggle="modal" data-bs-target="#exampleModal"><%=item.email%></td>
@@ -25,9 +25,11 @@
           <div class="dropdown">
             <button class="btn btn-dark btn-sm dropdown-toggle" id="dropdownMenuButton" data-bs-toggle="dropdown" style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;"></button>
             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-              <li><a class="dropdown-item" href="#">이용 정지</a></li>
-              <li><a class="dropdown-item" href="#">관리 권한 부여</a></li>
-              <li><a class="dropdown-item" href="#" style="color:red">계정 삭제</a></li>
+              <% if (authStatus.userId!==item.id) { %>
+                <li><a class="dropdown-item" href="#">이용 정지</a></li>
+                <li><a class="dropdown-item" href="#">관리 권한 부여</a></li>
+                <li class="delete"><a class="dropdown-item" href="#" style="color:red">계정 삭제</a></li>
+              <% } %>
             </ul>
           </div>
         </td>
@@ -59,5 +61,25 @@
   // });
   $("table.list tbody tr").on("click", function() {
     
+  });
+
+  $("li.delete").on("click", function() {
+    const userId = $(this).closest("tr").attr("user_id");
+
+    if (confirm("정말 삭제하시겠습니까?")) {
+      $.ajax({
+        url: `/users/${userId}`,
+        method: 'DELETE',
+        success: function(response) {
+          console.log(response);
+          alert(response);
+          document.location.reload();
+        },
+        error: function(xhr, status, error) {
+          console.log('입력 오류:', xhr.responseText);
+          alert(xhr.responseText);
+        }
+      });
+    }
   });
 </script>

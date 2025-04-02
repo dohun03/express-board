@@ -59,13 +59,17 @@
           <label class="form-label">새 비밀번호 확인</label>
           <input type="password" class="form-control confirm-password">
       </div>
-      <button class="btn btn-danger w-100 password">비밀번호 변경</button>
+      <button class="btn btn-success w-100 password">비밀번호 변경</button>
     </div>
+  </div>
+  <div style="text-align: center; padding-top:20px;">
+    <button type="button" class="btn btn-danger btn-sm delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 회원탈퇴</button>
   </div>
 </div>
 <script>
+  const userId = '<%=authStatus.userId%>';
+
   $(".btn.username").on("click", function() {
-    const userId = '<%=authStatus.userId%>';
     const username = $("input.username").val();
 
     $.ajax({
@@ -87,7 +91,6 @@
   });
 
   $(".btn.password").on("click", function() {
-    const userId = '<%=authStatus.userId%>';
     const password = $("input.password").val();
     const newPassword = $("input.new-password").val();
     const confirmPassword = $("input.confirm-password").val();
@@ -101,9 +104,9 @@
           newPassword
         },
         success: function(response) {
-          alert(response)
-          document.location.href = '/';
           console.log(response);
+          alert(response);
+          document.location.href = '/';
         },
         error: function(xhr, status, error) {
           console.log('입력 오류:', xhr.responseText);
@@ -112,6 +115,24 @@
       });
     } else {
       alert("새 비밀번호를 다시 확인하시기 바랍니다.");
+    }
+  });
+
+  $(".btn.delete").on("click", function() {
+    if (confirm("정말 삭제하시겠습니까?")) {
+      $.ajax({
+        url: `/users/${userId}`,
+        method: 'DELETE',
+        success: function(response) {
+          console.log(response);
+          alert(response);
+          document.location.href = '/';
+        },
+        error: function(xhr, status, error) {
+          console.log('입력 오류:', xhr.responseText);
+          alert(xhr.responseText);
+        }
+      });
     }
   });
 </script>

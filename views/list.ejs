@@ -1,11 +1,11 @@
-<% 
+<%
   let page_search = '';
   if (search) {
     page_search = `search=${search}&`;
   }
 %>
 <div class="info" style="width:100%; margin-bottom: 10px;">
-    <a href="/boards/new/edit"><button type="button" class="btn btn-dark" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
+    <a href="/boards/new/edit"><button type="button" class="btn btn-dark new" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
     <button type="button" class="btn btn-light btn-sm view">
       <!-- switch case문 오류 떠서 if문으로 바꿈. -->
       <% if (view === 'asc') { %>
@@ -72,6 +72,21 @@
     </tbody>
 </table>
 <script>
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    $(".new").html('<i class="fa fa-pencil-square-o" aria-hidden="true"></i>');
+    $("table.list").css("font-size","12px");
+    $("table.list thead tr th:nth-child(3)").html('<i class="fa fa-calendar-o" aria-hidden="true"></i>');
+    $("table.list thead tr th:nth-child(4)").html('<i class="fa fa-thumbs-o-up" aria-hidden="true"></i>');
+    $("table.list thead tr th:nth-child(5)").html('<i class="fa fa-eye" aria-hidden="true"></i>');
+    $("table.list tbody tr").each( function() {
+      const date = new Date( $(this).children("td:nth-child(3)").text() );
+      const formattedDate = (date.getMonth() + 1).toString().padStart(2, '0') + '/' + date.getDate().toString().padStart(2, '0');
+      $(this).children("td:nth-child(3)").text(formattedDate);
+    });
+  }
+
   $(".line").on("change", function() {
     let line = $(this).val();
     $.ajax({

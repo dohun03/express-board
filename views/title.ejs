@@ -12,14 +12,27 @@
   <style>
   html { height: 100%; }
   body { height: 100%; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
-  .__body__ { padding: 120px 400px 40px 400px; height:100%; background-color:#f0f0f0; overflow: auto; /* 내용이 넘칠 경우 스크롤바 표시 */ }
+  .__body__ { 
+    padding: 140px 400px 40px 400px;
+    height:100%;
+    background-color:#f0f0f0;
+    overflow: auto;
+  }
   
-  /* 미디어 쿼리를 사용하여 화면 크기에 따라 스타일 변경 */
+  /* 작은 태블릿 및 모바일 (최대 768px) */
   @media (max-width: 768px) {
       .__body__ {
           padding: 80px 20px; /* 작은 화면에서 패딩 조정 */
       }
   }
+
+  /* 중간 크기 태블릿 (768px ~ 1024px) */
+  @media (min-width: 769px) and (max-width: 1024px) {
+      .__body__ {
+          padding: 100px 40px; /* 중간 크기 화면에서 패딩 변경 */
+      }
+  }
+
   .navbar {
       position: fixed;
       top: 0;
@@ -35,10 +48,33 @@
   <div class="__header__">
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid">
-          <a class="navbar-brand" href="/">
-          <b>EX community</b>
-          </a>
-          <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <a class="navbar-brand" href="/"><b>EX community</b></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarScroll" aria-controls="navbarScroll" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarScroll">
+          <!-- <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="#">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Link</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Link
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">Action</a></li>
+                <li><a class="dropdown-item" href="#">Another action</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#">Something else here</a></li>
+              </ul>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link disabled" aria-disabled="true">Link</a>
+            </li>
+          </ul> -->
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
             <% if (authStatus) { %>
             <li class="nav-item dropdown">
@@ -59,7 +95,7 @@
             </li>
             <% } %>
           </ul>
-          </div>
+        </div>
       </div>
     </nav>
   </div>

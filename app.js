@@ -78,6 +78,8 @@ app.post('/send-code', async (req, res) => {
 
   const authCode = Math.floor(100000 + Math.random() * 900000).toString(); // 인증번호 생성
 
+  console.log('인증코드:', authCode);
+
   try {
     await transporter.sendMail({
       from: `"MyApp" <${process.env.EMAIL_USER}>`,
@@ -86,7 +88,9 @@ app.post('/send-code', async (req, res) => {
       text: `인증번호: ${authCode}`,
     });
 
+    req.session.email = email;
     req.session.authCode = authCode;
+
     res.send('인증번호 전송 완료');
   } catch (error) {
     res.status(500).send(error);
@@ -169,7 +173,6 @@ app.post('/uploads', function (req, res) {
 
 app.delete('/uploads', async function (req, res) {
   const { id, files } = req.body;
-  console.log(id, files);
 
   if (!files) {
     return res.status(400).json({ error: '삭제할 파일이 없습니다.' });
@@ -299,7 +302,7 @@ app.get('/boards/:id', async (req, res) => {
     // 쿼리 순차 실행 -> 병렬 실행(한번에 실행)
     const [[like], [comment], [data]] = await Promise.all([
       db.promise().query(`SELECT user_id FROM tbl_like WHERE board_id=?`, [id]),
-      db.promise().query(`SELECT c.*, u.username FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id]),
+      db.promise().query(`SELECT c.*, u.username, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id]),
       db.promise().query(`SELECT b.*, u.username FROM tbl_board b LEFT JOIN tbl_user u ON b.user_id=u.id WHERE b.id=?`, [id])
     ]);
 
@@ -590,6 +593,10 @@ app.post('/users', async (req, res) => {
       return res.status(401).send('인증번호가 일치하지 않습니다.');
     }
 
+    if (email !== req.session.email) {
+      return res.status(401).send('이메일이 일치하지 않습니다.');
+    }
+
     if (!patternUsername.test(username) || !patternPassword.test(password)) {
       return res.status(400).send('조건에 맞게 아이디와 비밀번호를 입력해주세요.');
     }
@@ -682,14 +689,13 @@ app.patch('/users/:id/password', async (req, res) => {
 app.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { username } = req.body;
   
     if (!id) {
       return res.status(400).send('아이디를 입력해주세요.');
     }
   
     // 관리자거나, 본인 인증이 되거나
-    if (!req.session.admin || id!==req.session.userId) {
+    if (!(req.session.admin || id==req.session.userId)) {
       return res.status(403).send('당신은 관리자 권한이 없습니다.');
     }
   
@@ -697,6 +703,7 @@ app.delete('/users/:id', async (req, res) => {
 
     const sessionId = await redisClient.get(`user:${id}`);
 
+    await redisClient.del(`user:${id}`);
     await redisClient.del(`sess:${sessionId}`);
 
     res.status(200).send('아이디가 삭제 되었습니다.');

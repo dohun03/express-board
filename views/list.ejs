@@ -41,7 +41,7 @@
   </div>
 </div>
 <table class="table table-hover list" style="border: 1px solid #ccc;">
-    <col style="width:55%;"><col><col style="width:12%;"><col style="width:8%;"><col style="width:8%;">
+    <col style="width:55%;"><col><col style="width:15%;"><col style="width:10%;"><col style="width:10%;">
     <thead>
       <tr>
         <th scope="col">제목</th>
@@ -53,7 +53,7 @@
     </thead>
     <tbody class="table-group-divider">
       <% data.forEach(item => { %>
-        <tr class="<%= item.user_id==authStatus.userId?'table-info':''%>">
+        <tr class="<%= item.user_id==authStatus.userId?'table-primary':''%>">
           <td>
             <a style="display:block; color:black; text-decoration-line: none; width:100%;" href="/boards/<%= item.id %>">
               <%= item.subject %>
@@ -75,6 +75,7 @@
   const isMobile = window.innerWidth <= 768;
 
   if (isMobile) {
+    $(".btn").addClass("btn-sm");
     $(".new").html('<i class="fa fa-pencil-square-o" aria-hidden="true"></i>');
     $("table.list").css("font-size","12px");
     $("table.list thead tr th:nth-child(3)").html('<i class="fa fa-calendar-o" aria-hidden="true"></i>');

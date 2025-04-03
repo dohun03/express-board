@@ -1,4 +1,12 @@
 <style>
+  .subject {
+    margin-bottom:10px;
+  }
+
+  .content {
+    height:70%;
+  }
+  
   .container {
     display: flex;
     flex-wrap: wrap;
@@ -114,19 +122,14 @@
   }
 </style>
 <% if (data) { %>
-<input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
-<textarea class="form-control content" style="height:80%;"><%= data[0].content %></textarea>
+<input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35">
+<textarea class="form-control content"><%= data[0].content %></textarea>
 <% } else { %>
-<input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35" style="margin-bottom:10px;">
-<textarea class="form-control content" style="height:80%;"></textarea>
+<input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35">
+<textarea class="form-control content"></textarea>
 <% } %>
 <br>
 <div class="container">
-  <!-- <div class="button-container">
-    <button class="btn btn-sm btn-primary save">게시글 저장</button>
-    <button class="btn btn-sm btn-warning back" onclick="window.history.back()">취소</button>
-  </div> -->
-
   <div class="form-container">
     <form action="/uploads" method="post" enctype="multipart/form-data">
       <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">

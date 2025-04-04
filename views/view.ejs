@@ -49,11 +49,11 @@
     margin-top:10px;
   }
 
-  .comments > .comment > .info > span:nth-child(1) {
+  .comments > .comment > .info > span:nth-child(2) {
     padding-right:10px;
   }
 
-  .comments > .comment > .info > span:nth-child(2) {
+  .comments > .comment > .info > span:nth-child(3) {
     padding:0 10px 0 10px;
   }
 
@@ -103,7 +103,7 @@
   </div>
   <div class="main content"><%= data[0].content %></div>
   <br>
-  <button class="btn btn-light <%= authStatus.userId?'like':'' %> <%= active?'active':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span><%= like.length %></span> 좋아요</button>
+  <button class="btn btn-light likes_total <%= authStatus.userId?'like':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span>-</span> 좋아요</button>
   <% if (data[0].user_id==authStatus.userId) { %>
   <div class="float-end">
     <a href="/boards/<%= id %>/edit">
@@ -117,28 +117,10 @@
 </div>
 <br><br>
 <div class="comments_total">
-  <i class="fa fa-commenting-o" aria-hidden="true"></i> 
-  댓글 <span class="total"><%= comment?.[0]?.total || 0 %></span>개
+  <i class="fa fa-commenting" aria-hidden="true"></i> 
+  댓글 <span>-</span>개
 </div>
-<div class="comments">
-<% comment.forEach(item => { %>
-  <div class="comment" id="<%= item.id %>">
-    <div class="info">
-      <span user_id="<%= item.user_id %>"><b><%= item.username %></b></span>|
-      <span>
-        <%= item.created_at.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-').replace(',', '').substring(0, 22);  %>
-      </span>
-      <% if (authStatus.username==item.username) {%>
-        <button type="button" class="btn btn-dark editComment">수정</button>
-      <% } %>
-      <% if (authStatus.username==item.username) {%>
-        <button type="button" class="btn btn-danger deleteComment">삭제</button>
-      <% } %>
-    </div>
-    <div class="content viewComment"><%= item.content %></div>
-  </div>
-<% }); %>
-</div>
+<div class="comments">댓글 불러오는 중...</div>
 <% if (authStatus) { %>
 <div class="content writeComment">
   <textarea placeholder="댓글을 입력하세요"></textarea><br>
@@ -159,6 +141,59 @@
       } else {
         $(this).height('auto');
         $(this).height(this.scrollHeight);
+      }
+    });
+
+    $.ajax({
+      url: '/boards/<%=id%>/likes',
+      method: 'GET',
+      success: function(response) {
+        console.log(response)
+        $(".likes_total").addClass( response[0].has_liked ? 'active' : '');
+        $(".likes_total > span").text(response?.[0]?.total_likes || 0);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert(xhr.responseText);
+      }
+    });
+
+    $.ajax({
+      url: '/boards/<%=id%>/comments',
+      method: 'GET',
+      success: function(response) {
+        let comments = '';
+
+        response.forEach(item => {
+          const date = new Date(item.created_at);
+          const formatted = date.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+
+          comments +=
+          `<div class="comment" id="${item.id}">
+            <div class="info">
+              <i class="fa fa-user-circle-o" aria-hidden="true"></i>
+              <span user_id="${item.user_id}"><b>${item.username}</b></span>|
+              <span>${formatted}</span>
+              <button type="button" class="btn btn-dark editComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">수정</button>
+              <button type="button" class="btn btn-danger deleteComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">삭제</button>
+            </div>
+            <div class="content viewComment">${item.content}</div>
+          </div>`
+        });
+
+        $(".comments").html(comments);
+        $(".comments_total > span").text(response?.[0]?.total || 0);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert(xhr.responseText);
       }
     });
   });
@@ -209,7 +244,7 @@
     $(this).toggleClass('active');
 
     $.ajax({
-      url: '/likes/<%=id%>',
+      url: '/board/<%=id%>/likes',
       method: status,
       success: function(response) {
         console.log(response);
@@ -224,10 +259,9 @@
   $(".btn.saveComment").click( function(){
     let content = $(".writeComment > textarea").val()
     $.ajax({
-      url: '/comments',
+      url: '/boards/<%=id%>/comments',
       method: 'POST',
       data: { 
-        board_id: '<%=id%>',
         parent_id: 0,
         content: content
       },
@@ -237,6 +271,7 @@
         let newComment = `
         <div class="comment" id="${response.comment.id}">
           <div class="info">
+            <i class="fa fa-user-circle-o" aria-hidden="true"></i>
             <span user_id="${response.comment.user_id}"><b>${response.comment.username}</b></span>|
             <span>${new Date(response.comment.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-').replace(',', '').substring(0, 22)}</span>
             <button type="button" class="btn btn-dark editComment">수정</button>
@@ -276,10 +311,9 @@
     commentElement.children(".content").text(content);
     
     $.ajax({
-      url: '/comments',
+      url: `/boards/<%=id%>/comments/${id}`,
       method: 'PATCH',
       data: { 
-        id,
         content
       },
       success: function(response) {
@@ -287,7 +321,7 @@
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
-        alert("예기치 못한 에러가 발생 했습니다.")
+        alert("예기치 못한 에러가 발생 했습니다.");
       }
     });
   });
@@ -297,11 +331,8 @@
       const commentElement = $(this).closest(".comment");
       const id = commentElement.attr("id");
       $.ajax({
-        url: '/comments',
+        url: `/boards/<%=id%>/comments/${id}`,
         method: 'DELETE',
-        data: { 
-          id
-        },
         success: function(response) {
           console.log(response);
           commentElement.remove();  // 댓글 요소 삭제
@@ -309,7 +340,7 @@
         },
         error: function(xhr, status, error) {
           console.log(xhr, status, error);
-          alert("예기치 못한 에러가 발생 했습니다.")
+          alert("예기치 못한 에러가 발생 했습니다.");
         }
       });
     }

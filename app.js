@@ -294,29 +294,24 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/boards/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const userId = req.session.userId;
+app.get('/boards/:id', (req, res) => {
+  const { id } = req.params;
 
-    // 쿼리 순차 실행 -> 병렬 실행(한번에 실행)
-    const [[like], [comment], [data]] = await Promise.all([
-      db.promise().query(`SELECT user_id FROM tbl_like WHERE board_id=?`, [id]),
-      db.promise().query(`SELECT c.*, u.username, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id]),
-      db.promise().query(`SELECT b.*, u.username FROM tbl_board b LEFT JOIN tbl_user u ON b.user_id=u.id WHERE b.id=?`, [id])
-    ]);
-
-    if (data && data.length > 0) {
-      let view = data[0].view + 1;
-      await db.promise().query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id]);
-      let active = like.some((value) => value.user_id === userId);
-      res.render('title', { body:'view', data, id, active, like, comment, authStatus: authStatus(req, res) });
-    } else {
-      res.status(404).send('요청하신 게시글을 찾을 수 없습니다.');
+  db.query(`SELECT b.*, u.username FROM tbl_board b LEFT JOIN tbl_user u ON b.user_id=u.id WHERE b.id=?`, [id], function(error, data) {
+    if (error) {
+      return res.status(500).send('게시글 불러오기에 실패했습니다.');
     }
-  } catch (err) {
-    res.status(500).send('Internal Server Error');
-  }
+
+    let view = data[0].view + 1;
+
+    db.query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id], function(error, view) {
+      if (error) {
+        return res.status(500).send('조회수 증가에 실패했습니다.');
+      }
+  
+      res.render('title', { body:'view', data, id, authStatus: authStatus(req, res) });
+    });
+  });
 });
 
 app.get('/boards/:id/edit', (req, res) => {
@@ -326,7 +321,7 @@ app.get('/boards/:id/edit', (req, res) => {
   }
 
   const id = req.params.id != 'new' ? req.params.id : '';
-  const userId = req.session.userId;
+  const { userId } = req.session;
   
   if (id) {
     db.query(`SELECT * FROM tbl_board where id=?`, [id], function(error, data) {
@@ -345,7 +340,7 @@ app.get('/boards/:id/edit', (req, res) => {
 
 app.post('/boards', (req, res) => {
   const { subject, content } = req.body;
-  const userId = req.session.userId;
+  const { userId } = req.session;
 
   if (!subject || !content) {
     return res.status(400).send('제목과 내용을 입력해주세요.');
@@ -356,14 +351,14 @@ app.post('/boards', (req, res) => {
       res.status(500).send('Internal Server Error');
       return;
     }
-    res.send({ insertId: data.insertId });
+    res.status(200).send({ insertId: data.insertId });
   });
 });
 
 app.patch('/boards/:id', (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   const { subject, content } = req.body;
-  const userId = req.session.userId;
+  const { userId } = req.session;
   const date = formatDate('db');
 
   if (!subject || !content) {
@@ -376,59 +371,91 @@ app.patch('/boards/:id', (req, res) => {
       console.log(error);
       return;
     }
-    res.send();
+    res.status(204).send();
   });
 });
 
 app.delete('/boards/:id', (req, res) => {
-  const id = req.params.id;
-  const userId = req.session.userId;
+  const { id } = req.params;
+  const { userId } = req.session;
+
   db.query(`DELETE FROM tbl_board where id=? and user_id=?`, [id, userId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
     }
-    res.status(204).send('Delete success');
+    res.status(200).send('Delete success');
   });
 });
 
-app.post('/likes/:id', (req, res) => {
-  const id = req.params.id;
-  const userId = req.session.userId;
+app.get('/boards/:id/likes', (req, res) => {
+    const { id } = req.params;
+    const { userId } = req.session;
+
+    db.query(`SELECT (SELECT COUNT(*) FROM tbl_like WHERE board_id = ?) AS total_likes, 
+    EXISTS (SELECT 1 FROM tbl_like WHERE board_id = ? AND user_id = ?) AS has_liked;`, [id, id, userId], function(error, like) {
+      if (error) {
+        console.log(error)
+        return res.status(500).send('좋아요 불러오기에 실패했습니다.');
+      }
+      
+      res.status(200).send(like);
+    });
+});
+
+app.post('/board/:id/likes', (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.session;
+
   if (userId) {
-    db.query(`INSERT INTO tbl_like(user_id,board_id) VALUES(?,?)`, [userId, id], function(error, data) {
+    db.query(`INSERT INTO tbl_like(board_id, user_id) VALUES(?,?)`, [id, userId], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
         console.log(error);
         return;
       }
-      res.send('add');
+      res.status(200).send('add');
     })
   } else {
     res.status(403).send('회원만 추천 가능합니다.');
   }
 });
 
-app.delete('/likes/:id', (req, res) => {
-  const id = req.params.id;
-  const userId = req.session.userId;
+app.delete('/board/:id/likes', (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.session;
+
   if (userId) {
-    db.query(`DELETE FROM tbl_like WHERE user_id=? and board_id=?`, [userId, id], function(error, data) {
+    db.query(`DELETE FROM tbl_like WHERE board_id=? and user_id=?`, [id, userId], function(error, data) {
       if (error) {
         res.status(500).send('Internal Server Error');
         return;
       }
-      res.send('delete');
+      res.status(200).send('delete');
     });
   } else {
     res.status(403).send('회원만 추천 가능합니다.');
   }
 });
 
-app.post('/comments', (req, res) => {
-  const { board_id, content } = req.body;
-  const userId = req.session.userId;
-  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [board_id, userId, content], function(error, data) {
+app.get('/boards/:id/comments', (req, res) => {
+  const { id } = req.params;
+
+  db.query(`SELECT c.*, u.username, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id], function(error, comment) {
+    if (error) {
+      return res.status(500).send('댓글 불러오기에 실패했습니다.');
+    }
+
+    res.status(200).send(comment);
+  });
+});
+
+app.post('/boards/:boardId/comments', (req, res) => {
+  const { boardId } = req.params;
+  const { content } = req.body;
+  const { userId } = req.session;
+
+  db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [boardId, userId, content], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
@@ -447,23 +474,26 @@ app.post('/comments', (req, res) => {
   });
 });
 
-app.patch('/comments', (req, res) => {
-  const { id, content } = req.body;
-  const userId = req.session.userId;
-  db.query(`UPDATE tbl_comment SET content=? where id=? and user_id=?`, [content, id, userId], function(error, data) {
+app.patch('/boards/:boardId/comments/:commentId', (req, res) => {
+  const { boardId, commentId } = req.params;
+  const { content } = req.body;
+  const { userId } = req.session;
+
+  db.query(`UPDATE tbl_comment SET content=? where board_id=? and user_id=? and id=?`, [content, boardId, userId, commentId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       console.log(error)
       return;
     }
-    res.send();
+    res.status(204).send();
   });
 });
 
-app.delete('/comments', (req, res) => {
-  const { id } = req.body;
-  const userId = req.session.userId;
-  db.query(`DELETE FROM tbl_comment where id=? and user_id=?`, [id, userId], function(error, data) {
+app.delete('/boards/:boardId/comments/:commentId', (req, res) => {
+  const { boardId, commentId } = req.params;
+  const { userId } = req.session;
+
+  db.query(`DELETE FROM tbl_comment where board_id=? and user_id=? and id=?`, [boardId, userId, commentId], function(error, data) {
     if (error) {
       res.status(500).send('Internal Server Error');
       return;
@@ -529,7 +559,7 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-  const userId = req.session.userId;
+  const { userId } = req.session;
 
   req.session.destroy(async (err)=>{
     if (err)
@@ -636,7 +666,7 @@ app.patch('/users/:id/username', (req, res) => {
     }
     req.session.username = username;
     req.session.save(() => {
-      res.send('아이디가 변경 되었습니다!');
+      res.status(200).send('아이디가 변경 되었습니다!');
     });
   });
 });
@@ -679,7 +709,7 @@ app.patch('/users/:id/password', async (req, res) => {
 
     await db.promise().query(`UPDATE tbl_user SET password = ? WHERE id=?`,[newPassword, id]);
 
-    res.send('비밀번호가 변경 되었습니다!');
+    res.status(200).send('비밀번호가 변경 되었습니다!');
   } catch (err) {
     console.log(err);
     res.status(500).send('Internal Server Error');

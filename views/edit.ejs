@@ -243,7 +243,7 @@
           content: content
         },
         success: function(response) {
-          let id = response.insertId ? response.insertId : '<%=id%>';
+          let id = response ? response.insertId : '<%=id%>';
           formData.append('id', id);
           for (let pair of formData.entries()) {
             console.log(pair[0], pair[1]);

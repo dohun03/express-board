@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const fs = require('fs');
+const sanitizeHtml = require('sanitize-html');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const iconv = require('iconv-lite');
@@ -59,6 +60,13 @@ function authStatus(req, res) {
   } else {
     return false;
   }
+}
+
+function sanitizeInput(input) { 
+  return sanitizeHtml(input, {
+    allowedTags: [],
+    allowedAttributes: {}
+  });
 }
 
 const transporter = nodemailer.createTransport({
@@ -154,7 +162,7 @@ app.post('/uploads', function (req, res) {
     }
 
     const { id } = req.body;
-    const filenames = req.files.map(file => file.filename); // 파일명 배열
+    const filenames = req.files.map(file => sanitizeInput(file.filename));
 
     let sqlQuery = `UPDATE tbl_board SET upload = CASE 
       WHEN upload IS NULL THEN JSON_ARRAY(?) 
@@ -286,6 +294,7 @@ app.get('/', (req, res) => {
     });
 
     let page_total = 0;
+
     if (data.length > 0) {
       page_total = Math.ceil(parseInt(data[0]['total']) / line);
     }
@@ -302,7 +311,12 @@ app.get('/boards/:id', (req, res) => {
       return res.status(500).send('게시글 불러오기에 실패했습니다.');
     }
 
-    let view = data[0].view + 1;
+    if (data.length === 0) {
+      res.render('title', { body:'error', errorMessage: '존재하지 않는 게시글 입니다.', authStatus: authStatus(req, res) });
+      return;
+    }
+
+    let view = data?.[0]?.view + 1;
 
     db.query(`UPDATE tbl_board SET view=? WHERE id=?`, [view, id], function(error, view) {
       if (error) {
@@ -328,7 +342,7 @@ app.get('/boards/:id/edit', (req, res) => {
       if (error) {
         return res.status(500).send('Internal Server Error');
       }
-      if (data[0].user_id!=userId) {
+      if (data?.[0]?.user_id!=userId) {
         return res.status(403).render('title', { body:'error', errorMessage:'당신은 수정 권한이 없습니다.', authStatus: authStatus(req, res) } );
       }
       res.render('title', { body:'edit', data, id, userId, status: 'update', authStatus: authStatus(req, res) });
@@ -339,8 +353,11 @@ app.get('/boards/:id/edit', (req, res) => {
 });
 
 app.post('/boards', (req, res) => {
-  const { subject, content } = req.body;
+  const subject = sanitizeInput(req.body.subject);
+  const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
+
+  console.log(subject, content)
 
   if (!subject || !content) {
     return res.status(400).send('제목과 내용을 입력해주세요.');
@@ -357,7 +374,8 @@ app.post('/boards', (req, res) => {
 
 app.patch('/boards/:id', (req, res) => {
   const { id } = req.params;
-  const { subject, content } = req.body;
+  const subject = sanitizeInput(req.body.subject);
+  const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
   const date = formatDate('db');
 
@@ -403,7 +421,7 @@ app.get('/boards/:id/likes', (req, res) => {
     });
 });
 
-app.post('/board/:id/likes', (req, res) => {
+app.post('/boards/:id/likes', (req, res) => {
   const { id } = req.params;
   const { userId } = req.session;
 
@@ -421,7 +439,7 @@ app.post('/board/:id/likes', (req, res) => {
   }
 });
 
-app.delete('/board/:id/likes', (req, res) => {
+app.delete('/boards/:id/likes', (req, res) => {
   const { id } = req.params;
   const { userId } = req.session;
 
@@ -441,7 +459,7 @@ app.delete('/board/:id/likes', (req, res) => {
 app.get('/boards/:id/comments', (req, res) => {
   const { id } = req.params;
 
-  db.query(`SELECT c.*, u.username, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id], function(error, comment) {
+  db.query(`SELECT c.*, u.username, u.admin, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id], function(error, comment) {
     if (error) {
       return res.status(500).send('댓글 불러오기에 실패했습니다.');
     }
@@ -452,7 +470,7 @@ app.get('/boards/:id/comments', (req, res) => {
 
 app.post('/boards/:boardId/comments', (req, res) => {
   const { boardId } = req.params;
-  const { content } = req.body;
+  const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
 
   db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [boardId, userId, content], function(error, data) {
@@ -463,20 +481,21 @@ app.post('/boards/:boardId/comments', (req, res) => {
     }
 
     let insertedId = data.insertId;
-    db.query(`SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username FROM tbl_comment c LEFT JOIN tbl_user u ON u.id = c.user_id WHERE c.id = ?;`, [insertedId], function(selectError, result) {
+
+    db.query(`SELECT c.id, c.content, c.created_at, u.id AS user_id, u.username, u.admin FROM tbl_comment c LEFT JOIN tbl_user u ON u.id = c.user_id WHERE c.id = ?;`, [insertedId], function(selectError, result) {
       if (selectError) {
         res.status(500).send('Internal Server Error');
-        console.log(selectError);
         return;
       }
-      res.send({ comment: result[0] });
+      
+      res.send({ data: result[0] });
     });
   });
 });
 
 app.patch('/boards/:boardId/comments/:commentId', (req, res) => {
   const { boardId, commentId } = req.params;
-  const { content } = req.body;
+  const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
 
   db.query(`UPDATE tbl_comment SET content=? where board_id=? and user_id=? and id=?`, [content, boardId, userId, commentId], function(error, data) {
@@ -523,38 +542,39 @@ app.post('/login', (req, res) => {
       return;
     }
 
-    if (data.length > 0) {
-      bcrypt.compare(password, data[0].password, function(err, result) {
-        if (err) {
-          res.status(500).send('비밀번호 확인 중 오류가 발생했습니다.');
-          return;
-        }
-
-        if (result) { // 비밀번호가 일치하는 경우
-          req.session.isLogined = true;
-          req.session.userId = data[0].id;
-          req.session.username = data[0].username;
-          req.session.admin = data[0].admin;
-          req.session.save(async (err) => {
-            if (err) {
-              console.error("세션 저장 중 오류:", err);
-              return res.status(500).send("세션 저장 중 오류가 발생했습니다.");
-            }
-
-            try {
-              await redisClient.set(`user:${data[0].id}`, req.sessionID, { EX: 86400 });
-              res.status(200).send();
-            } catch (error) {
-              res.status(500).send("세션 저장 중 오류가 발생했습니다.");
-            }
-          });
-        } else {
-          res.status(401).send('비밀번호가 맞지 않습니다.');
-        }
-      })
-    } else {
+    if (data.length === 0) {
       res.status(404).send('존재하지 않는 아이디입니다.');
+      return;
     }
+
+    bcrypt.compare(password, data[0].password, function(err, result) {
+      if (err) {
+        res.status(500).send('비밀번호 확인 중 오류가 발생했습니다.');
+        return;
+      }
+
+      if (result) { // 비밀번호가 일치하는 경우
+        req.session.isLogined = true;
+        req.session.userId = data[0].id;
+        req.session.username = data[0].username;
+        req.session.admin = data[0].admin;
+        req.session.save(async (err) => {
+          if (err) {
+            console.error("세션 저장 중 오류:", err);
+            return res.status(500).send("세션 저장 중 오류가 발생했습니다.");
+          }
+
+          try {
+            await redisClient.set(`user:${data[0].id}`, req.sessionID, { EX: 86400 });
+            res.status(200).send();
+          } catch (error) {
+            res.status(500).send("세션 저장 중 오류가 발생했습니다.");
+          }
+        });
+      } else {
+        res.status(401).send('비밀번호가 맞지 않습니다.');
+      }
+    });
   });
 });
 

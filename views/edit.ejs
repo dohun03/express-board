@@ -151,15 +151,23 @@
 </div>
 
 <script>
-  $(document).ready(function() {
+  $(document).ready( function() {
     const fileInput = $("#userfile");
     const fileList = $(".file-list");
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
     let selectedFiles = [];
     let form = $('form')[0];
     let formData = new FormData(); // 처음에 빈 FormData 객체 생성
 
     fileInput.on("change", function() {
       const files = fileInput[0].files;
+
+      // if (files && files[0].size >= MAX_FILE_SIZE) {
+      //   alert(`파일이 너무 큽니다 (1개당 최대 5MB)`);
+      //   $(this).val('');
+      //   return;
+      // }
 
       if (files.length === 0) return;
 
@@ -212,7 +220,7 @@
       }
     });
 
-    $('.save').click(function(e) {
+    $('.save').click( function(e) {
       e.preventDefault();
 
       let subject = $('.subject').val();
@@ -245,10 +253,6 @@
         success: function(response) {
           let id = response ? response.insertId : '<%=id%>';
           formData.append('id', id);
-          for (let pair of formData.entries()) {
-            console.log(pair[0], pair[1]);
-          }
-
 
           if (selectedFiles.length > 0) {
             $.ajax({
@@ -259,6 +263,7 @@
               contentType: false,
               success: function(response) {
                 document.location.href = '/boards/'+id;
+                console.log('된거냐?');
               },
               error: function(xhr, status, error) {
                 console.log('파일 업로드 오류:', xhr.responseText);

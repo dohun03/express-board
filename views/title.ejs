@@ -72,6 +72,12 @@
     .none {
       display:none;
     }
+    .__header__ .profile-image {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
   </style>
 </head>
 <body>
@@ -87,7 +93,12 @@
             <% if (authStatus) { %>
             <li class="nav-item dropdown">
               <div class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fa fa-user-circle-o" aria-hidden="true"></i> <b><%= authStatus.username %></b>님
+                <% if(authStatus.profileImage) { %>
+                  <img src="/users/<%=authStatus.profileImage%>" class="profile-image" alt="프로필 이미지">
+                <% } else { %>
+                  <i class="fa fa-user-circle-o" aria-hidden="true"></i> 
+                <% } %>
+                <b><%= authStatus.username %></b>님
               </div>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                 <% if (authStatus.admin) { %> 

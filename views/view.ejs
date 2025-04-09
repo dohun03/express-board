@@ -1,72 +1,83 @@
 <style>
+  /* ==== 공통 레이아웃 ==== */
+  .main > .subject,
+  .main > .content {
+    background-color: white;
+    border-radius: 15px;
+    padding: 15px;
+    width: 100%;
+    margin-bottom: 10px;
+    white-space: pre-line;
+  }
+  .main > .subject {
+    font-weight: bold;
+  }
+  .main > .info {
+    padding: 10px;
+    min-height: 50px;
+  }
+
+  /* ==== 첨부파일 드롭다운 ==== */
   .dropdown {
     float: right;
   }
-
   .dropdown > .dropdown-menu > .dropdown-item {
-    max-width: 600px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 600px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .main > .subject {
-    background-color:white;
-    padding:15px;
-    width:100%;
-    margin-bottom:10px;
-    font-weight:bold;
+  /* ==== 좋아요 버튼 ==== */
+  .likes_total {
+    margin-top: 10px;
   }
 
-  .main > .info {
-    padding:10px; min-height:50px;
-  }
-
-  .main > .content {
-    background-color:white;
-    padding:15px;
-    width:100%;
-    margin-bottom:10px;
-    white-space: pre-line;
-  }
-
+  /* ==== 댓글 전체 영역 ==== */
   .comments_total {
     color: rgb(103, 103, 103);
     font-size: 20px;
     font-weight: bold;
     border-top: 2px solid #ccc;
     border-bottom: 2px solid #ccc;
-    padding: 8px 0px 8px 0px;
+    padding: 8px 0;
     margin-bottom: 25px;
   }
 
   .comments {
-    margin-bottom:20px;
+    margin-bottom: 20px;
   }
-
   .comments > .comment {
-    margin-top:10px;
+    margin-top: 20px;
   }
-
-  .comments > .comment > .info {
-    margin-top:10px;
+  .comments > .comment > .comment-wrapper {
+    display: flex;
+    align-items: flex-start;
   }
-
-  .comments > .comment > .info > span:nth-child(2) {
-    padding-right:10px;
+  .comments > .comment > .comment-wrapper > .user-wrapper > .profile-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 15px;
   }
-
-  .comments > .comment > .info > span:nth-child(3) {
-    padding:0 10px 0 10px;
+  .comments > .comment > .comment-wrapper > .comment-body {
+    width: 100%;
   }
-
-  .comments > .comment > .info > .btn {
-    --bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;
+  .comments > .comment > .comment-wrapper > .comment-body > .info > span:nth-child(2) {
+    margin-right: 5px;
   }
-  
+  .comments > .comment > .comment-wrapper > .comment-body > .info > span:nth-child(3) {
+    margin-right: 15px;
+    font-size: 0.9em;
+  }
   .comments > .comment > .content {
     white-space: pre-line;
-    min-height:40px;
+    min-height: 40px;
     display: flex;
   }
 
+  /* ==== 댓글 작성 영역 ==== */
   .content textarea {
     width: 100%;
     height: 40px;
@@ -77,9 +88,52 @@
     resize: none;
     overflow-y: hidden;
   }
-
   .content textarea:hover {
     border-bottom: 1px solid black;
+  }
+
+  /* ==== 유저 툴팁 및 프로필 ==== */
+  .user-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+  .user-tooltip {
+    display: none;
+    position: absolute;
+    top: 150%;
+    left: 0;
+    min-width: 340px;
+    background: white;
+    border: 1px solid #bbb;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    font-size: 18px;
+    line-height: 1.6;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+  }
+  .user-wrapper:hover .user-tooltip {
+    display: block;
+  }
+  .user-tooltip .fw-bold {
+    font-size: 20px;
+  }
+  .user-tooltip .text-muted {
+    font-size: 16px;
+    color: #6c757d;
+  }
+  .user-tooltip .profile-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 15px;
+  }
+  .profile-icon {
+    width: 80px;
+    height: 80px;
+    background-color: #dee2e6;
+    border-radius: 50%;
   }
 </style>
 <div class="main">
@@ -130,76 +184,11 @@
   <h4><b>*로그인 후 댓글 작성이 가능합니다.*</b></h4> 
 <% } %>
 <script>
-  <% let uploads = data[0].upload || ''; %>
-  let deleteFile = <%- JSON.stringify(uploads) %>;
-  deleteFile = deleteFile.length > 0 ? deleteFile: ''; //빈 배열로 처리되면 오류나서 이렇게 처리함.
-
-  $(document).ready(function() {
-    $(".__body__").on("input", "textarea", function() {
-      if ($(this).val().indexOf("\n") === -1) {
-        $(this).height(35);
-      } else {
-        $(this).height('auto');
-        $(this).height(this.scrollHeight);
-      }
-    });
-
-    $.ajax({
-      url: '/boards/<%=id%>/likes',
-      method: 'GET',
-      success: function(response) {
-        console.log(response)
-        $(".likes_total").addClass( response[0].has_liked ? 'active' : '');
-        $(".likes_total > span").text(response?.[0]?.total_likes || 0);
-      },
-      error: function(xhr, status, error) {
-        console.log(xhr, status, error);
-        alert(xhr.responseText);
-      }
-    });
-
-    $.ajax({
-      url: '/boards/<%=id%>/comments',
-      method: 'GET',
-      success: function(response) {
-        let comments = '';
-
-        response.forEach(item => {
-          const userIcon = item.admin ? '<i class="fa fa-user-plus" aria-hidden="true" style="color:#4d4bbe"></i>' : '<i class="fa fa-user-circle-o" aria-hidden="true"></i>';
-          const date = new Date(item.created_at);
-          const formatted = date.toLocaleString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          });
-
-          comments +=
-          `<div class="comment" id="${item.id}">
-            <div class="info">
-              ${userIcon}
-              <span user_id="${item.user_id}" ${item.admin ? 'style="color:#4d4bbe"' : ''}><b>${item.username}</b></span>|
-              <span>${formatted}</span>
-              <button type="button" class="btn btn-dark editComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">수정</button>
-              <button type="button" class="btn btn-danger deleteComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">삭제</button>
-            </div>
-            <div class="content viewComment">${item.content}</div>
-          </div>`
-        });
-
-        $(".comments").html(comments);
-        $(".comments_total > span").text(response?.[0]?.total || 0);
-      },
-      error: function(xhr, status, error) {
-        console.log(xhr, status, error);
-        alert(xhr.responseText);
-      }
-    });
-  });
-
   $(".btn.delete").click( function(){
+    <% let uploads = data[0].upload || ''; %>
+    let deleteFile = <%- JSON.stringify(uploads) %>;
+    deleteFile = deleteFile.length > 0 ? deleteFile: ''; //빈 배열로 처리되면 오류나서 이렇게 처리함.
+
     if (confirm("정말 삭제하시겠습니까?")) {
       $.ajax({
         url: '/boards/<%=id%>',
@@ -233,22 +222,88 @@
     }
   });
 
-  $(".btn.like").click( function(){
-    let status;
-    if ( $(this).hasClass("active") ) {
-      status = 'DELETE'
-      $(this).find("span").text( parseInt($(this).find("span").text()) - 1 )
-    } else {
-      status = 'POST'
-      $(this).find("span").text( parseInt($(this).find("span").text()) + 1 )
-    }
-    $(this).toggleClass('active');
+  function loadComment() {
+    $.ajax({
+      url: '/boards/<%=id%>/comments',
+      method: 'GET',
+      success: function(response) {
+        let comments = '';
+
+        response.forEach(item => {
+          const date = new Date(item.created_at);
+          const formatted = date.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+
+          comments +=
+          `<div class="comment" id="${item.id}">
+            <div class="comment-wrapper d-flex">
+              <div class="user-wrapper">
+                ${item.profile_image ? '<img src="/users/'+item.profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}
+                <!-- 유저 정보 툴팁 -->
+                <div class="user-tooltip">
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="profile-icon me-3">${item.profile_image ? '<img src="/users/'+item.profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}</div>
+                    <div>
+                      <div class="fw-bold">${item.username}</div>
+                      <div class="text-muted">LV.${item.level}</div>
+                    </div>
+                  </div>
+                  <div>가입일: <strong>${item.join_date}</strong></div>
+                  <div>작성글: ${item.post_count}</div>
+                  <div>작성댓글: ${item.comment_count}</div>
+                </div>
+              </div>
+
+              <div class="comment-body ms-2">
+                <div class="info mb-1">
+                  ${item.admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
+                  <span user_id="${item.user_id}" ${item.admin ? 'style="color:red"' : ''}><b>${item.username}</b></span>
+                  <span class="text-muted">${formatted}</span>
+                  <button type="button" class="btn btn-dark btn-sm editComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">수정</button>
+                  <button type="button" class="btn btn-danger btn-sm deleteComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">삭제</button>
+                </div>
+                <div class="content viewComment">${item.content}</div>
+              </div>
+            </div>
+          </div>
+          `;
+        });
+
+        $(".comments").html(comments);
+        $(".comments_total > span").text(response?.[0]?.total || 0);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert(xhr.responseText);
+      }
+    });
+  }
+
+  $(document).ready(function() {
+    $(".__body__").on("input", "textarea", function() {
+      if ($(this).val().indexOf("\n") === -1) {
+        $(this).height(35);
+      } else {
+        $(this).height('auto');
+        $(this).height(this.scrollHeight);
+      }
+    });
+
+    loadComment();
 
     $.ajax({
       url: '/boards/<%=id%>/likes',
-      method: status,
+      method: 'GET',
       success: function(response) {
-        console.log(response);
+        console.log(response)
+        $(".likes_total").addClass( response[0].has_liked ? 'active' : '');
+        $(".likes_total > span").text(response?.[0]?.total_likes || 0);
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -266,38 +321,23 @@
         parent_id: 0,
         content: content
       },
-      success: function(response) {
-        console.log(response)
-        // 새로운 댓글을 즉시 추가
-        const userIcon = response.data.admin ? '<i class="fa fa-user-plus" aria-hidden="true" style="color:#4d4bbe"></i>' : '<i class="fa fa-user-circle-o" aria-hidden="true"></i>';
-        let newComment = `
-        <div class="comment" id="${response.data.id}">
-          <div class="info">
-            ${userIcon}
-            <span user_id="${response.data.user_id}" ${response.data.admin ? 'style="color:#4d4bbe"' : ''}><b>${response.data.username}</b></span>|
-            <span>${new Date(response.data.created_at).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-').replace(',', '').substring(0, 22)}</span>
-            <button type="button" class="btn btn-dark editComment">수정</button>
-            <button type="button" class="btn btn-danger deleteComment">삭제</button>
-          </div>
-          <div class="content">${response.data.content}</div>
-        </div>`;
-
-        $(".comments").append(newComment);
+      success: function() {
+        loadComment();
         $(".writeComment > textarea").val("");
         $(".writeComment > textarea").height(35);
         $(".comments_total > span").text( parseInt($(".comments_total > span").text()) + 1 );
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
-        alert("예기치 못한 에러가 발생 했습니다.")
+        alert("예기치 못한 에러가 발생 했습니다.");
       }
     });
   });
 
   $(".comments").on("click", ".btn.editComment", function() {
-    const commentElement = $(this).closest(".comment");
+    const commentElement = $(this).closest(".comment-body");
     commentElement.children(".info").children(".editComment").text("저장");
-    commentElement.children(".info").children(".editComment").attr("class","btn btn-primary resaveComment");
+    commentElement.children(".info").children(".editComment").attr("class","btn btn-primary btn-sm resaveComment");
     commentElement.children(".content").html(`
       <textarea placeholder="댓글을 입력하세요">${commentElement.children(".content").text()}</textarea>
     `);
@@ -305,12 +345,14 @@
   });
 
   $(".comments").on("click", ".btn.resaveComment", function() {
-    const commentElement = $(this).closest(".comment");
-    const id = commentElement.attr("id");
+    const id = $(this).closest(".comment").attr("id");
+    const commentElement = $(this).closest(".comment-body");
     const content = commentElement.children(".content").children("textarea").val();
     commentElement.children(".info").children(".resaveComment").text("수정");
-    commentElement.children(".info").children(".resaveComment").attr("class","btn btn-dark editComment");
+    commentElement.children(".info").children(".resaveComment").attr("class","btn btn-dark btn-sm editComment");
     commentElement.children(".content").text(content);
+
+    console.log($(this).closest(".comment").attr("id"));
     
     $.ajax({
       url: `/boards/<%=id%>/comments/${id}`,
@@ -346,6 +388,30 @@
         }
       });
     }
+  });
+
+  $(".btn.like").click( function(){
+    let status;
+    if ( $(this).hasClass("active") ) {
+      status = 'DELETE'
+      $(this).find("span").text( parseInt($(this).find("span").text()) - 1 )
+    } else {
+      status = 'POST'
+      $(this).find("span").text( parseInt($(this).find("span").text()) + 1 )
+    }
+    $(this).toggleClass('active');
+
+    $.ajax({
+      url: '/boards/<%=id%>/likes',
+      method: status,
+      success: function(response) {
+        console.log(response);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert(xhr.responseText);
+      }
+    });
   });
 </script>
 </html>

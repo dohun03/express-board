@@ -12,17 +12,37 @@
       font-weight: 500;
   }
   .nav-pills .nav-link.active {
-      background-color: #03C75A; /* 네이버 색상 */
+      background-color: #03C75A;
   }
-  .profile-img {
+  .profile-img-wrapper .profile-img {
       width: 80px;
       height: 80px;
       border-radius: 50%;
       object-fit: cover;
   }
+  .profile-img-wrapper {
+      position: relative;
+      display: inline-block;
+  }
+  .profile-img-wrapper .image.delete {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 5px 10px;
+      cursor: pointer;
+  }
+  .profile-img-wrapper:hover .profile-img {
+      filter: brightness(0.5);
+  }
+  .profile-img-wrapper:hover .image.delete {
+      display: block;
+  }
 </style>
+
 <div class="container settings-container">
-  <h3 class="text-center mb-4">사용자 설정</h3>
+  <h3 class="text-center mb-4"><%=data[0].username%>님</h3>
   <!-- 네비게이션 탭 -->
   <ul class="nav nav-pills mb-3 justify-content-center" id="settings-tabs">
       <li class="nav-item">
@@ -36,12 +56,21 @@
     <!-- 프로필 설정 -->
     <div class="tab-pane fade show active" id="profile">
       <div class="text-center mb-3">
-        <img src="https://via.placeholder.com/80" class="profile-img mb-3" alt="프로필 이미지">
+          <div class="profile-img-wrapper mb-3">
+            <% if(data[0].profile_image) { %>
+            <img src="/users/<%=data[0].profile_image%>" class="profile-img" alt="프로필 이미지">
+            <button class="btn btn-dark image delete"><i class="fa fa-trash-o" aria-hidden="true"></i></button>
+            <% } else { %>
+              <img src="/user.svg" class="profile-img"/>
+            <% } %>
+          </div>
+      </div>
+      <div class="mb-3">
         <div class="d-flex align-items-center gap-2">
           <div class="input-group mb-3">
-          <input type="file" class="form-control" accept="image/*">
-          <button class="btn btn-success" style="width: 20%;">저장</button>
-        </div>
+            <input type="file" class="form-control" name="profile" accept="image/*">
+            <button class="btn btn-success image save" style="width: 20%;">저장</button>
+          </div>
         </div>
       </div>
     
@@ -50,7 +79,7 @@
           <div class="input-group mb-3">
             <span class="input-group-text" id="inputGroup-sizing-default">아이디</span>
             <input type="text" class="form-control username" pattern="[A-Za-z0-9가-힣]{2,12}" placeholder="변경할 닉네임을 입력 하십시오" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-default">
-            <button class="btn btn-success username" style="width: 20%;">저장</button>
+            <button class="btn btn-success username save" style="width: 20%;">저장</button>
           </div>
         </div>
       </div>
@@ -70,17 +99,64 @@
           <label class="form-label">새 비밀번호 확인</label>
           <input type="password" class="form-control confirm-password">
       </div>
-      <button class="btn btn-success w-100 password">비밀번호 변경</button>
+      <button class="btn btn-success w-100 password save">비밀번호 변경</button>
     </div>
   </div>
   <div style="text-align: center; padding-top:20px;">
-    <button type="button" class="btn btn-danger btn-sm delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 회원탈퇴</button>
+    <button type="button" class="btn btn-danger btn-sm user delete"><i class="fa fa-trash-o" aria-hidden="true"></i> 회원탈퇴</button>
   </div>
 </div>
 <script>
   const userId = '<%=authStatus.userId%>';
 
-  $(".btn.username").on("click", function() {
+  $('.btn.image.save').click( function(e) {
+    const fileInput = $('input[name=profile]')[0];
+    const file = $('input[name=profile]')[0].files[0];
+    console.log(file)
+
+    if (!file) {
+      alert('파일을 선택하세요!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    $.ajax({
+      url: '/uploads/profile',
+      method: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: function(response) {
+        document.location.reload();
+      },
+      error: function(xhr, status, error) {
+        console.log('파일 업로드 오류:', xhr.responseText);
+        alert(xhr.responseText);
+      }
+    });
+  });
+
+  $('.btn.image.delete').click( function(e) {
+    e.preventDefault();
+
+    if (confirm("정말 삭제하시겠습니까?")) {
+      $.ajax({
+        url: '/uploads/profile',
+        method: 'DELETE',
+        success: function(response) {
+          document.location.reload();
+        },
+        error: function(xhr, status, error) {
+          console.log('파일 삭제 오류:', xhr.responseText);
+          alert(xhr.responseText);
+        }
+      });
+    }
+  });
+
+  $(".btn.username.save").on("click", function() {
     const username = $("input.username").val();
 
     $.ajax({
@@ -101,7 +177,7 @@
     });
   });
 
-  $(".btn.password").on("click", function() {
+  $(".btn.password.save").on("click", function() {
     const password = $("input.password").val();
     const newPassword = $("input.new-password").val();
     const confirmPassword = $("input.confirm-password").val();
@@ -129,7 +205,7 @@
     }
   });
 
-  $(".btn.delete").on("click", function() {
+  $(".btn.user.delete").on("click", function() {
     if (confirm("정말 삭제하시겠습니까?")) {
       $.ajax({
         url: `/users/${userId}`,

@@ -108,8 +108,9 @@
 </div>
 <script>
   const userId = '<%=authStatus.userId%>';
+  const profileImage = '<%=data[0].profile_image%>';
 
-  $('.btn.image.save').click( function(e) {
+  $('.btn.image.save').click(async function(e) {
     const fileInput = $('input[name=profile]')[0];
     const file = $('input[name=profile]')[0].files[0];
     console.log(file)
@@ -122,20 +123,27 @@
     const formData = new FormData();
     formData.append('file', file);
 
-    $.ajax({
-      url: '/uploads/profile',
-      method: 'POST',
-      data: formData,
-      processData: false,
-      contentType: false,
-      success: function(response) {
-        document.location.reload();
-      },
-      error: function(xhr, status, error) {
-        console.log('파일 업로드 오류:', xhr.responseText);
-        alert(xhr.responseText);
+    try {
+      if (profileImage) {
+        await $.ajax({
+          url: '/uploads/profile',
+          method: 'DELETE',
+        });
       }
-    });
+
+      await $.ajax({
+        url: '/uploads/profile',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+      });
+
+      document.location.reload();
+    } catch (err) {
+      console.log('파일 업로드 오류:', err);
+      alert(err);
+    }
   });
 
   $('.btn.image.delete').click( function(e) {

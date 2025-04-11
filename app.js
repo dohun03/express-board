@@ -66,6 +66,31 @@ function sanitizeInput(input) {
   });
 }
 
+function sanitizeEditor(input) {
+  return sanitizeHtml(input, {
+    allowedTags: [
+      'p', 'div', 'span', 'b', 'strong', 'i', 'u', 'em', 'a', 'ul', 'ol', 'li','s',
+      'br', 'hr', 'img', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'blockquote', 'iframe', 'jodit'
+    ],
+    allowedAttributes: {
+      '*': [
+        'style', 'class', 'data-*', 'width', 'height', 'frameborder',
+        'allowfullscreen', 'contenteditable', 'draggable'
+      ],
+      'a': ['href', 'name', 'target'],
+      'img': ['src', 'alt', 'title', 'width', 'height'],
+      'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen'],
+      'jodit': ['data-jodit-temp', 'data-jodit_iframe_wrapper', 'style', 'contenteditable', 'draggable']
+    },
+    allowedSchemes: ['http', 'https', 'data'],
+    allowedIframeHostnames: ['www.youtube.com', 'youtube.com'],
+    allowedSchemesByTag: {
+      img: ['http', 'https', 'data']
+    }
+  });
+}
+
 const transporter = nodemailer.createTransport({
   host: 'smtp.naver.com',
   port: 465,
@@ -138,15 +163,7 @@ app.get('/downloads/:filename', function(req, res) {
 
 app.post('/uploads', function (req, res) {
   upload(req, res, function (err) {
-    console.log("파일이요",err)
     if (err instanceof multer.MulterError) {
-      // 업로드 중 저장된 파일이 있다면 삭제
-      // if (req.files && req.files.length > 0) {
-      //   req.files.forEach(file => {
-      //     fs.unlink(file.path, () => {});
-      //   });
-      // }
-
       // 에러 코드에 따라 메시지 처리
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).send('파일 크기가 너무 큽니다! (최대 5MB)');
@@ -464,7 +481,7 @@ app.get('/boards/:id/edit', (req, res) => {
 
 app.post('/boards', (req, res) => {
   const subject = sanitizeInput(req.body.subject);
-  const content = sanitizeInput(req.body.content);
+  const content = sanitizeEditor(req.body.content);
   const { userId } = req.session;
 
   console.log(subject, content)
@@ -485,7 +502,7 @@ app.post('/boards', (req, res) => {
 app.patch('/boards/:id', (req, res) => {
   const { id } = req.params;
   const subject = sanitizeInput(req.body.subject);
-  const content = sanitizeInput(req.body.content);
+  const content = sanitizeEditor(req.body.content);
   const { userId } = req.session;
   const date = formatDate('db');
 

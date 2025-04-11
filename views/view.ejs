@@ -1,4 +1,7 @@
 <style>
+  .main > .subject {
+    font-weight: bold;
+  }
   /* ==== 공통 레이아웃 ==== */
   .main > .subject,
   .main > .content {
@@ -7,10 +10,9 @@
     padding: 15px;
     width: 100%;
     margin-bottom: 10px;
-    white-space: pre-line;
-  }
-  .main > .subject {
-    font-weight: bold;
+    overflow-x: auto;
+  white-space: normal;     /* 줄바꿈 허용 */
+  word-break: break-word;  /* 긴 단어도 줄바꿈 */
   }
   .main > .info {
     padding: 10px;
@@ -155,7 +157,7 @@
     </div>
     <% } %>
   </div>
-  <div class="main content"><%= data[0].content %></div>
+  <div class="main content"><%- data[0].content %></div>
   <br>
   <button class="btn btn-light likes_total <%= authStatus.userId?'like':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span>-</span> 좋아요</button>
   <% if (data[0].user_id==authStatus.userId) { %>

@@ -95,12 +95,11 @@
     padding: 5px;
     margin: 5px 0;
     border-radius: 4px;
-    position: relative; /* 삭제 버튼을 우측에 고정하려면 부모 요소에 상대 위치를 설정 */
+    position: relative;
   }
 
-  /* 리스트 항목에 마우스 호버 시 삭제 아이콘 표시 */
   .file-list li:hover .delete-icon {
-    display: inline-block; /* 호버 시 삭제 아이콘 보이게 함 */
+    display: inline-block;
   }
 
   /* 삭제 아이콘 기본 상태: 숨김 */
@@ -108,25 +107,25 @@
     display: none;
     position: absolute;
     top: 50%;
-    right: 10px; /* 우측 10px 간격으로 배치 */
-    transform: translateY(-50%); /* 수직 중앙 정렬 */
+    right: 10px;
+    transform: translateY(-50%);
     cursor: pointer;
     color: red;
     font-size: 16px;
   }
 
   .truncate {
-    white-space: nowrap;   /* 줄 바꿈 방지 */
-    overflow: hidden;      /* 넘치는 부분 숨김 */
-    text-overflow: ellipsis; /* 말줄임표(...) 표시 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 </style>
 <% if (data) { %>
 <input class="form-control subject" value="<%= data[0].subject %>" placeholder="제목을 입력하세요" maxlength="35">
-<textarea class="form-control content"><%= data[0].content %></textarea>
+<textarea class="form-control content" id="editor" name="content"><%= data[0].content %></textarea>
 <% } else { %>
 <input class="form-control subject" placeholder="제목을 입력하세요" maxlength="35">
-<textarea class="form-control content"></textarea>
+<textarea class="form-control content" id="editor" name="content"></textarea>
 <% } %>
 <br>
 <div class="container">
@@ -149,9 +148,14 @@
     <button class="btn btn-sm btn-warning back" onclick="window.history.back()">취소</button>
   </div>
 </div>
-
 <script>
   $(document).ready( function() {
+    // 에디터 입력 값
+    const editor = new Jodit('#editor', {
+      height: 500,
+      language: 'ko',
+    });
+
     const fileInput = $("#userfile");
     const fileList = $(".file-list");
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -163,11 +167,11 @@
     fileInput.on("change", function() {
       const files = fileInput[0].files;
 
-      // if (files && files[0].size >= MAX_FILE_SIZE) {
-      //   alert(`파일이 너무 큽니다 (1개당 최대 5MB)`);
-      //   $(this).val('');
-      //   return;
-      // }
+      if (files && files[0].size >= MAX_FILE_SIZE) {
+        alert(`파일이 너무 큽니다 (1개당 최대 5MB)`);
+        $(this).val('');
+        return;
+      }
 
       if (files.length === 0) return;
 
@@ -224,7 +228,7 @@
       e.preventDefault();
 
       let subject = $('.subject').val();
-      let content = $('.content').val();
+      let content = editor.value;
       let url, method;
 
       if (!subject || !content) {

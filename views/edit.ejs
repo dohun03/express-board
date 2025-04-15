@@ -41,7 +41,7 @@
   .form-container {
     background-color: #fff;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     max-width: 400px;
     text-align: center;
@@ -73,21 +73,6 @@
     padding: 5px;
     margin: 5px 0;
     border-radius: 4px;
-  }
-
-  .submit-btn {
-    width: 100px;
-    padding: 10px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
-  .submit-btn:hover {
-    background-color: #45a049;
   }
   /* 파일 목록 */
   .file-list li {
@@ -130,18 +115,17 @@
 <br>
 <div class="container">
   <div class="form-container">
-    <form action="/uploads" method="post" enctype="multipart/form-data">
+    <form class="d-flex justify-content-center align-items-center" action="/uploads" method="post" enctype="multipart/form-data">
       <input type="file" name="userfile" id="userfile" multiple class="form-control file-input">
-      <ul class="file-list">
-        <% if (data && data[0].upload) { %>
-          <% let uploads = data[0].upload %>
-          <% uploads.forEach(item => { %>
-            <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
-          <% }) %>
-        <% } %>
-      </ul>
-      <button type="submit" class="submit-btn none">업로드</button>
     </form>
+    <ul class="file-list">
+      <% if (data && data[0].upload) { %>
+        <% let uploads = data[0].upload %>
+        <% uploads.forEach(item => { %>
+          <li><span class="file-name"><%= item %></span><span class="delete-icon">✖</span></li>
+        <% }) %>
+      <% } %>
+    </ul>
   </div>
   <div class="button-container">
     <button class="btn btn-sm btn-primary save">게시글 저장</button>
@@ -149,13 +133,13 @@
   </div>
 </div>
 <script>
-  $(document).ready( function() {
-    // 에디터 입력 값
-    const editor = new Jodit('#editor', {
-      height: 500,
-      language: 'ko',
-    });
+  // 에디터 입력 값
+  const editor = new Jodit('#editor', {
+    height: 500,
+    language: 'ko',
+  });
 
+  $(document).ready( function() {
     const fileInput = $("#userfile");
     const fileList = $(".file-list");
     const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -168,7 +152,7 @@
       const files = fileInput[0].files;
 
       if (files && files[0].size >= MAX_FILE_SIZE) {
-        alert(`파일이 너무 큽니다 (1개당 최대 5MB)`);
+        alert(`파일이 너무 큽니다 (1개당 최대 5MB, 한번에 최대 5개)`);
         $(this).val('');
         return;
       }
@@ -227,6 +211,7 @@
     $('.save').click( function(e) {
       e.preventDefault();
 
+      let saveButton = $(this);
       let subject = $('.subject').val();
       let content = editor.value;
       let url, method;
@@ -236,8 +221,8 @@
         return;
       }
 
-      $(this).attr("disabled", true); // 도배 예방
-      $(this).text("저장 중..");
+      saveButton.attr("disabled", true); // 도배 예방
+      saveButton.text("저장 중..");
       
       if ('<%=status%>' === 'update') {
         url = '/boards/<%=id%>';
@@ -267,11 +252,11 @@
               contentType: false,
               success: function(response) {
                 document.location.href = '/boards/'+id;
-                console.log('된거냐?');
               },
               error: function(xhr, status, error) {
                 console.log('파일 업로드 오류:', xhr.responseText);
                 alert(xhr.responseText);
+                document.location.href = '/boards/'+id;
               }
             });
           } else{

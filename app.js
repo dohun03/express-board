@@ -357,6 +357,7 @@ app.delete('/uploads/profile', async function (req, res) {
 app.get('/', (req, res) => {
   let page = req.query.page ? parseInt(req.query.page) : 1;
   let line = 100;
+  
   if (req.cookies.line) {
     line = parseInt(req.cookies.line);
   }
@@ -364,10 +365,12 @@ app.get('/', (req, res) => {
   let where = '';
   let params = [];
   let search = req.query.search;
+
   if (search) {
     where += `WHERE subject LIKE ? `;
     params.push(`%${search}%`);
   }
+
   params.push(line * (page - 1), line);
 
   let order_by = '';
@@ -395,6 +398,7 @@ app.get('/', (req, res) => {
       order_by += '';
       break;
   }
+
   order_by += 'B.id DESC ';
 
   let sqlQuery = `SELECT B.*, U.username,
@@ -420,13 +424,14 @@ app.get('/', (req, res) => {
       selectOptionsHtml += `<option value='${option}' ${selected}>${option} 줄</option>`;
     });
 
+    let total = parseInt(data[0]['total']);
     let page_total = 0;
 
     if (data.length > 0) {
-      page_total = Math.ceil(parseInt(data[0]['total']) / line);
+      page_total = Math.ceil(total / line);
     }
 
-    res.render('title', { body:'list', data, page_total, selectOptionsHtml, currentPage: page, search, like, view, authStatus: authStatus(req, res)});
+    res.render('title', { body:'list', data, total, page_total, selectOptionsHtml, currentPage: page, search, like, view, authStatus: authStatus(req, res)});
   });
 });
 
@@ -535,13 +540,37 @@ app.delete('/boards/:id', (req, res) => {
 
 app.get('/boards/:id/comments', (req, res) => {
   const { id } = req.params;
+  const sqlQuery = `
+  SELECT 
+    c.id AS comment_id,
+    c.board_id AS comment_board_id,
+    c.user_id AS comment_user_id,
+    c.parent_id AS comment_parent_id,
+    c.content AS comment_content,
+    c.created_at AS comment_created_at,
+    c.updated_at AS comment_updated_at,
 
-  db.query(`SELECT c.*, u.username, u.admin, u.profile_image, (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total FROM tbl_comment c LEFT JOIN tbl_user u ON c.user_id = u.id WHERE board_id=? ORDER BY c.created_at ASC;`, [id, id], function(error, comment) {
+    u.id AS user_id,
+    u.username AS user_username,
+    u.admin AS user_admin,
+    u.email AS user_email,
+    u.created_at AS user_created_at,
+    u.profile_image AS user_profile_image,
+
+    (SELECT COUNT(*) FROM tbl_comment WHERE board_id = ?) AS total
+
+  FROM tbl_comment c
+  LEFT JOIN tbl_user u ON c.user_id = u.id
+  WHERE c.board_id = ?
+  ORDER BY c.created_at ASC;`
+
+  db.query(sqlQuery, [id, id], function(error, data) {
     if (error) {
+      console.log(error)
       return res.status(500).send('댓글 불러오기에 실패했습니다.');
     }
 
-    res.status(200).send(comment);
+    res.status(200).send(data);
   });
 });
 

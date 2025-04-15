@@ -1,38 +1,13 @@
 <style>
-  .main > .subject {
-    font-weight: bold;
+  .container {
+    padding: 0 !important;
   }
-  /* ==== 공통 레이아웃 ==== */
-  .main > .subject,
-  .main > .content {
-    background-color: white;
-    border-radius: 15px;
-    padding: 15px;
-    width: 100%;
-    margin-bottom: 10px;
-    overflow-x: auto;
-  white-space: normal;     /* 줄바꿈 허용 */
-  word-break: break-word;  /* 긴 단어도 줄바꿈 */
-  }
-  .main > .info {
-    padding: 10px;
-    min-height: 50px;
-  }
-
   /* ==== 첨부파일 드롭다운 ==== */
-  .dropdown {
-    float: right;
-  }
   .dropdown > .dropdown-menu > .dropdown-item {
     max-width: 600px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  /* ==== 좋아요 버튼 ==== */
-  .likes_total {
-    margin-top: 10px;
   }
 
   /* ==== 댓글 전체 영역 ==== */
@@ -66,21 +41,37 @@
   .comments > .comment > .comment-wrapper > .comment-body {
     width: 100%;
   }
-  .comments > .comment > .comment-wrapper > .comment-body > .info > span:nth-child(2) {
+  .comment-body > .info > span:nth-child(2) {
     margin-right: 5px;
   }
-  .comments > .comment > .comment-wrapper > .comment-body > .info > span:nth-child(3) {
+  .comment-body > .info > span:nth-child(3) {
     margin-right: 15px;
     font-size: 0.9em;
   }
-  .comments > .comment > .content {
-    white-space: pre-line;
-    min-height: 40px;
-    display: flex;
+  .comment-body > .commentRow {
+    position: relative;
   }
-
+  .comment-body > .commentRow > .content {
+    white-space: pre-line;
+    word-break: break-word;
+    min-height: 40px;
+  }
+  .comment-body > .commentRow > .dropdown {
+    position: absolute;
+    top: 0;
+    right: 0;
+    cursor: pointer;
+  }
+  .comment-body > .commentRow > .dropdown > .dropdown-menu > *:hover {
+    cursor: pointer;
+  }
   /* ==== 댓글 작성 영역 ==== */
-  .content textarea {
+  .writeComment {
+    display: flex;
+    align-items: flex-start; /* textarea 상단 기준 정렬 */
+    gap: 8px; /* textarea와 버튼 간격 조정 */
+  }
+  .writeComment textarea {
     width: 100%;
     height: 40px;
     border: none;
@@ -89,8 +80,9 @@
     outline: none;
     resize: none;
     overflow-y: hidden;
+    flex: 1;
   }
-  .content textarea:hover {
+  .writeComment textarea:hover {
     border-bottom: 1px solid black;
   }
 
@@ -109,7 +101,7 @@
     border: 1px solid #bbb;
     border-radius: 1rem;
     padding: 1.5rem;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.6;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
     z-index: 100;
@@ -138,27 +130,40 @@
     border-radius: 50%;
   }
 </style>
-<div class="main">
-  <h3 class="subject"><%= data[0].subject %></h3>
-  <div class="info">
-    <b>작성자:</b> <%= data[0].username %> | <b>작성일자:</b> <%= data[0].created_at.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-').replace(',', '').substring(0, 22); %>
-    <%- data[0].updated_at ? '<b>(수정됨)</b>':'' %>
-    <% if (data[0].upload && data[0].upload.length > 0) { %>
-    <div class="dropdown">
-      <button class="btn btn-sm btn-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
-      </button>
-      <ul class="dropdown-menu">
-        <% let uploads = data[0].upload; %>
-        <% uploads.forEach(item => { %>
-        <li><a class="dropdown-item" href="<%= `/downloads/${item}` %>"> <%= item %></a></li>
-        <% }) %>
-      </ul>
+<div class="container mb-5">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="card-title mb-3 fw-bold" id="board-title">[일반] <%= data[0].subject %></h3>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted small">
+          <i class="bi bi-person-circle me-1"></i>
+          <span id="board-author"><%= data[0].username %></span>
+          &nbsp;|&nbsp;
+          <i class="bi bi-calendar-event me-1"></i>
+          <span id="board-date"><%= data[0].created_at.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-').replace(',', '').substring(0, 22); %></span>
+          <span><%- data[0].updated_at ? '<b>(수정됨)</b>':'' %></span>
+        </div>
+        <% if (data[0].upload && data[0].upload.length > 0) { %>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle file" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fa fa-paperclip" aria-hidden="true"></i> 첨부파일
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <% let uploads = data[0].upload; %>
+            <% uploads.forEach(item => { %>
+              <li><a class="dropdown-item" href="<%= `/downloads/${item}` %>"><%= item %></a></li>
+            <% }) %>
+          </ul>
+        </div>
+        <% } %>
+      </div>
+
+      <hr />
+      <div class="mt-4" id="board-content"><%- data[0].content %></div>
     </div>
-    <% } %>
   </div>
-  <div class="main content"><%- data[0].content %></div>
-  <br>
+</div>
+<div class="container mb-5">
   <button class="btn btn-light likes_total <%= authStatus.userId?'like':'' %>"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i> <span>-</span> 좋아요</button>
   <% if (data[0].user_id==authStatus.userId) { %>
   <div class="float-end">
@@ -171,20 +176,22 @@
   </div>
   <% } %>
 </div>
-<br><br>
-<div class="comments_total">
-  <i class="fa fa-commenting" aria-hidden="true"></i> 
-  댓글 <span>-</span>개
+<div class="container mb-5">
+  <div class="comments_total">
+    <i class="fa fa-commenting" aria-hidden="true"></i> 
+    댓글 <span>-</span>개
+  </div>
+  <div class="comments">댓글 불러오는 중...</div>
+  <% if (authStatus) { %>
+  <div class="content writeComment">
+    <textarea placeholder="댓글을 입력하세요"></textarea>
+    <button class="btn btn-dark saveComment"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+  </div>
+  <% } else { %> 
+    <h4><b>*로그인 후 댓글 작성이 가능합니다.*</b></h4> 
+  <% } %>
 </div>
-<div class="comments">댓글 불러오는 중...</div>
-<% if (authStatus) { %>
-<div class="content writeComment">
-  <textarea placeholder="댓글을 입력하세요"></textarea><br>
-  <button class="btn btn-sm btn-primary saveComment">저장</button>
-</div>
-<% } else { %> 
-  <h4><b>*로그인 후 댓글 작성이 가능합니다.*</b></h4> 
-<% } %>
+<div style="height:150px;"></div>
 <script>
   $(".btn.delete").click( function(){
     <% let uploads = data[0].upload || ''; %>
@@ -232,8 +239,8 @@
         let comments = '';
 
         response.forEach(item => {
-          const date = new Date(item.created_at);
-          const formatted = date.toLocaleString('ko-KR', {
+          const date = new Date(item.comment_created_at);
+          const formmatDate = date.toLocaleString('ko-KR', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -243,34 +250,46 @@
           });
 
           comments +=
-          `<div class="comment" id="${item.id}">
+          `<div class="comment" id="${item.comment_id}">
             <div class="comment-wrapper d-flex">
               <div class="user-wrapper">
-                ${item.profile_image ? '<img src="/users/'+item.profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}
+                ${item.user_profile_image ? '<img src="/users/'+item.user_profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}
                 <!-- 유저 정보 툴팁 -->
                 <div class="user-tooltip">
                   <div class="d-flex align-items-center mb-2">
-                    <div class="profile-icon me-3">${item.profile_image ? '<img src="/users/'+item.profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}</div>
+                    <div class="profile-icon me-3">${item.user_profile_image ? '<img src="/users/'+item.user_profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}</div>
                     <div>
-                      <div class="fw-bold">${item.username}</div>
-                      <div class="text-muted">LV.${item.level}</div>
+                      <div class="fw-bold">${item.user_username}</div>
+                      <div class="text-muted">LV.0</div>
                     </div>
                   </div>
-                  <div>가입일: <strong>${item.join_date}</strong></div>
-                  <div>작성글: ${item.post_count}</div>
-                  <div>작성댓글: ${item.comment_count}</div>
+                  <div><strong>가입일: </strong>${formmatDate}</div>
                 </div>
               </div>
 
               <div class="comment-body ms-2">
                 <div class="info mb-1">
-                  ${item.admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
-                  <span user_id="${item.user_id}" ${item.admin ? 'style="color:red"' : ''}><b>${item.username}</b></span>
-                  <span class="text-muted">${formatted}</span>
-                  <button type="button" class="btn btn-dark btn-sm editComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">수정</button>
-                  <button type="button" class="btn btn-danger btn-sm deleteComment ${'<%=authStatus.username%>'==item.username ? '':'none'}">삭제</button>
+                  ${item.user_admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
+                  <span user_id="${item.user_id}" ${item.user_admin ? 'style="color:red"' : ''}><b>${item.user_username}</b></span>
+                  <span class="text-muted">${formmatDate}</span>
                 </div>
-                <div class="content viewComment">${item.content}</div>
+                <div class="commentRow">
+                  <div class="content viewComment">${item.comment_content}</div>
+                  <div class="dropdown position-absolute top-0 end-0">
+                    <button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#000000" viewBox="0 0 24 24">
+                        <circle cx="12" cy="5" r="1.5"/>
+                        <circle cx="12" cy="12" r="1.5"/>
+                        <circle cx="12" cy="19" r="1.5"/>
+                      </svg>
+                    </button>
+                    <ul class="dropdown-menu">
+                      <li class="reportComment ${'<%=authStatus.username%>'==item.user_username ? 'none':''}"><a class="dropdown-item"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> 신고</a></li>
+                      <li class="editComment ${'<%=authStatus.username%>'==item.user_username ? '':'none'}"><a class="dropdown-item"><i class="fa fa-pencil" aria-hidden="true"></i> 수정</a></li>
+                      <li class="deleteComment ${'<%=authStatus.username%>'==item.user_username ? '':'none'}"><a class="dropdown-item"><i class="fa fa-trash" aria-hidden="true"></i> 삭제</a></li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -297,8 +316,6 @@
       }
     });
 
-    loadComment();
-
     $.ajax({
       url: '/boards/<%=id%>/likes',
       method: 'GET',
@@ -312,10 +329,12 @@
         alert(xhr.responseText);
       }
     });
+
+    loadComment();
   });
 
   $(".btn.saveComment").click( function(){
-    let content = $(".writeComment > textarea").val()
+    let content = $(".writeComment > textarea").val();
     $.ajax({
       url: '/boards/<%=id%>/comments',
       method: 'POST',
@@ -324,10 +343,10 @@
         content: content
       },
       success: function() {
-        loadComment();
         $(".writeComment > textarea").val("");
         $(".writeComment > textarea").height(35);
         $(".comments_total > span").text( parseInt($(".comments_total > span").text()) + 1 );
+        loadComment();
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -336,25 +355,9 @@
     });
   });
 
-  $(".comments").on("click", ".btn.editComment", function() {
-    const commentElement = $(this).closest(".comment-body");
-    commentElement.children(".info").children(".editComment").text("저장");
-    commentElement.children(".info").children(".editComment").attr("class","btn btn-primary btn-sm resaveComment");
-    commentElement.children(".content").html(`
-      <textarea placeholder="댓글을 입력하세요">${commentElement.children(".content").text()}</textarea>
-    `);
-    $("textarea").trigger("input");
-  });
-
-  $(".comments").on("click", ".btn.resaveComment", function() {
+  $(".comments").on("click", ".resaveComment", function() {
     const id = $(this).closest(".comment").attr("id");
-    const commentElement = $(this).closest(".comment-body");
-    const content = commentElement.children(".content").children("textarea").val();
-    commentElement.children(".info").children(".resaveComment").text("수정");
-    commentElement.children(".info").children(".resaveComment").attr("class","btn btn-dark btn-sm editComment");
-    commentElement.children(".content").text(content);
-
-    console.log($(this).closest(".comment").attr("id"));
+    const content = $(this).closest(".comment-body").find("textarea").val();
     
     $.ajax({
       url: `/boards/<%=id%>/comments/${id}`,
@@ -363,7 +366,8 @@
         content
       },
       success: function(response) {
-        console.log(response);
+        console.log('tq')
+        loadComment();
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -372,7 +376,7 @@
     });
   });
 
-  $(".comments").on("click", ".btn.deleteComment", function() {
+  $(".comments").on("click", ".deleteComment", function() {
     if (confirm("정말 삭제하시겠습니까?")) {
       const commentElement = $(this).closest(".comment");
       const id = commentElement.attr("id");
@@ -380,7 +384,6 @@
         url: `/boards/<%=id%>/comments/${id}`,
         method: 'DELETE',
         success: function(response) {
-          console.log(response);
           commentElement.remove();  // 댓글 요소 삭제
           $(".comments_total > span").text( parseInt($(".comments_total > span").text()) - 1 )
         },
@@ -390,6 +393,22 @@
         }
       });
     }
+  });
+
+  $(".comments").on("click", ".cancleComment", function() {
+    loadComment();
+  });
+
+  $(".comments").on("click", ".editComment", function() {
+    const commentElement = $(this).closest(".comment-body");
+    commentElement.children(".commentRow").html(`
+    <div class="content writeComment">
+      <textarea placeholder="댓글을 입력하세요">${commentElement.find(".content").text()}</textarea>
+      <button class="btn btn-secondary cancleComment"><i class="fa fa-undo" aria-hidden="true"></i></button>
+      <button class="btn btn-dark resaveComment"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+    </div>
+    `);
+    $("textarea").trigger("input");
   });
 
   $(".btn.like").click( function(){

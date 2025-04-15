@@ -4,10 +4,17 @@
     page_search = `search=${search}&`;
   }
 %>
-<div class="info" style="width:100%; margin-bottom: 10px;">
-    <a href="/boards/new/edit"><button type="button" class="btn btn-dark new" id="write-button"><i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기</button></a>
+<div class="info d-flex align-items-center justify-content-between flex-wrap gap-2" style="width: 100%; margin-bottom: 10px;">
+
+  <!-- 좌측: flex-grow로 너비 채움 -->
+  <div class="d-flex align-items-center flex-wrap gap-2 flex-grow-1 min-w-0">
+    <a href="/boards/new/edit">
+      <button type="button" class="btn btn-dark new" id="write-button">
+        <i class="fa fa-pencil-square-o" aria-hidden="true"></i> 글쓰기
+      </button>
+    </a>
+
     <button type="button" class="btn btn-light btn-sm view">
-      <!-- switch case문 오류 떠서 if문으로 바꿈. -->
       <% if (view === 'asc') { %>
         <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
       <% } else if (view === 'desc') { %>
@@ -15,9 +22,9 @@
       <% } else { %>
         <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
       <% } %> 조회수
-    </button>   
+    </button>
+
     <button type="button" class="btn btn-light btn-sm like">
-      <!-- switch case문 오류 떠서 if문으로 바꿈. -->
       <% if (like === 'asc') { %>
         <i class="fa fa-sort-numeric-asc" aria-hidden="true" status="asc"></i>
       <% } else if (like === 'desc') { %>
@@ -25,23 +32,48 @@
       <% } else { %>
         <i class="fa fa-sliders" aria-hidden="true" status="default"></i>
       <% } %> 좋아요
-    </button>        
-    <select class="form-select form-select-sm line" aria-label="Small select example" style="display:inline; width:100px;">
+    </button>
+
+    <select class="form-select form-select-sm line" style="width: 100px;">
       <%- selectOptionsHtml %>
     </select>
-    <form action="/" style="display:inline; margin-left:10px; margin-right:10px;">
-      <input class="form-control me-2" name="search" style="max-width:300px;display:inline;" type="text" placeholder="제목을 입력하세요" value="<%=search%>">
+
+    <form action="/" class="d-flex align-items-center flex-grow-1" style="min-width: 150px; max-width: 400px;">
+      <input class="form-control me-2" name="search" type="text" placeholder="제목을 입력하세요" value="<%=search%>" style="flex: 1;">
       <button class="btn btn-outline-success" type="submit">검색</button>
     </form>
-    <div class="float-end" id="pagination-controls"></div>
-    <div class="float-end">
-      <span style="margin-right:10px;"><%= currentPage %> / <%= page_total %></span>
-      <a href="<%= currentPage == 1 ? '#' : `/?${page_search}page=${currentPage - 1}` %>"><button type="button" class="btn btn-dark" <%= currentPage == 1 ? 'disabled' : '' %>><i class="fa fa-arrow-left" aria-hidden="true"></i></button></a>
-      <a href="<%= page_total == currentPage ? '#' : `/?${page_search}page=${currentPage + 1}` %>"><button type="button" class="btn btn-dark" <%= page_total == currentPage ? 'disabled' : '' %>><i class="fa fa-arrow-right" aria-hidden="true"></i></button></a>
+  </div>
+
+  <!-- 우측: 페이지 정보 및 버튼 -->
+  <div class="page-controls d-flex align-items-center gap-2" style="white-space: nowrap;">
+    <span><%= currentPage %> / <%= page_total %></span>
+    <a href="<%= currentPage == 1 ? '#' : `/?${page_search}page=${currentPage - 1}` %>">
+      <button type="button" class="btn btn-dark" <%= currentPage == 1 ? 'disabled' : '' %> >
+        <i class="fa fa-arrow-left" aria-hidden="true"></i>
+      </button>
+    </a>
+    <a href="<%= page_total == currentPage ? '#' : `/?${page_search}page=${currentPage + 1}` %>">
+      <button type="button" class="btn btn-dark" <%= page_total == currentPage ? 'disabled' : '' %> >
+        <i class="fa fa-arrow-right" aria-hidden="true"></i>
+      </button>
+    </a>
   </div>
 </div>
+<style>
+  @media (max-width: 768px) {
+    .info {
+      flex-direction: column;
+      align-items: flex-start !important;
+    }
+
+    .info .page-controls {
+      align-self: flex-end;
+      margin-top: 10px;
+    }
+  }
+</style>
 <table class="table table-hover list" style="border: 1px solid #ccc;">
-    <col style="width:55%;"><col><col style="width:15%;"><col style="width:10%;"><col style="width:10%;">
+    <col><col style="width:20%;"><col style="width:10%;"><col style="width:8%;"><col style="width:8%;">
     <thead>
       <tr>
         <th scope="col">제목</th>
@@ -77,7 +109,7 @@
   if (isMobile) {
     $(".btn").addClass("btn-sm");
     $(".new").html('<i class="fa fa-pencil-square-o" aria-hidden="true"></i>');
-    $("table.list").css("font-size","12px");
+    $("table.list").css("font-size","10px");
     $("table.list thead tr th:nth-child(3)").html('<i class="fa fa-calendar-o" aria-hidden="true"></i>');
     $("table.list thead tr th:nth-child(4)").html('<i class="fa fa-thumbs-o-up" aria-hidden="true"></i>');
     $("table.list thead tr th:nth-child(5)").html('<i class="fa fa-eye" aria-hidden="true"></i>');

@@ -538,14 +538,13 @@ app.delete('/boards/:id', (req, res) => {
   });
 });
 
-app.get('/boards/:id/comments', (req, res) => {
-  const { id } = req.params;
+app.get('/boards/:boardId/comments', (req, res) => {
+  const { boardId } = req.params;
   const sqlQuery = `
   SELECT 
     c.id AS comment_id,
     c.board_id AS comment_board_id,
     c.user_id AS comment_user_id,
-    c.parent_id AS comment_parent_id,
     c.content AS comment_content,
     c.created_at AS comment_created_at,
     c.updated_at AS comment_updated_at,
@@ -553,7 +552,6 @@ app.get('/boards/:id/comments', (req, res) => {
     u.id AS user_id,
     u.username AS user_username,
     u.admin AS user_admin,
-    u.email AS user_email,
     u.created_at AS user_created_at,
     u.profile_image AS user_profile_image,
 
@@ -564,7 +562,40 @@ app.get('/boards/:id/comments', (req, res) => {
   WHERE c.board_id = ?
   ORDER BY c.created_at ASC;`
 
-  db.query(sqlQuery, [id, id], function(error, data) {
+  db.query(sqlQuery, [boardId, boardId], function(error, data) {
+    if (error) {
+      console.log(error)
+      return res.status(500).send('댓글 불러오기에 실패했습니다.');
+    }
+
+    res.status(200).send(data);
+  });
+});
+
+app.get('/boards/:boardId/comments/:commentId', (req, res) => {
+  const { boardId, commentId } = req.params;
+
+  const sqlQuery = `
+  SELECT 
+    c.id AS comment_id,
+    c.board_id AS comment_board_id,
+    c.user_id AS comment_user_id,
+    c.content AS comment_content,
+    c.created_at AS comment_created_at,
+    c.updated_at AS comment_updated_at,
+
+    u.id AS user_id,
+    u.username AS user_username,
+    u.admin AS user_admin,
+    u.created_at AS user_created_at,
+    u.profile_image AS user_profile_image
+
+  FROM tbl_comment c
+  LEFT JOIN tbl_user u ON c.user_id = u.id
+  WHERE c.board_id = ? and c.id = ?
+  ORDER BY c.created_at ASC;`
+
+  db.query(sqlQuery, [boardId, commentId], function(error, data) {
     if (error) {
       console.log(error)
       return res.status(500).send('댓글 불러오기에 실패했습니다.');
@@ -578,6 +609,10 @@ app.post('/boards/:boardId/comments', (req, res) => {
   const { boardId } = req.params;
   const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
+
+  if (!content){
+    return res.status(400).send('내용을 입력하세요.');
+  }
 
   db.query(`INSERT INTO tbl_comment (board_id, user_id, content) VALUES (?,?,?);`, [boardId, userId, content], function(error, data) {
     if (error) {
@@ -594,6 +629,10 @@ app.patch('/boards/:boardId/comments/:commentId', (req, res) => {
   const { boardId, commentId } = req.params;
   const content = sanitizeInput(req.body.content);
   const { userId } = req.session;
+
+  if (!content){
+    return res.status(400).send('내용을 입력하세요.');
+  }
 
   db.query(`UPDATE tbl_comment SET content=? where board_id=? and user_id=? and id=?`, [content, boardId, userId, commentId], function(error, data) {
     if (error) {

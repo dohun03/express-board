@@ -183,7 +183,7 @@
   </div>
   <div class="comments">댓글 불러오는 중...</div>
   <% if (authStatus) { %>
-  <div class="content writeComment">
+  <div class="content new writeComment align-items-end">
     <textarea placeholder="댓글을 입력하세요"></textarea>
     <button class="btn btn-dark saveComment"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
   </div>
@@ -231,7 +231,86 @@
     }
   });
 
-  function loadComment() {
+  function loadCommentById(commentId, callback) {
+    $.ajax({
+      url: `/boards/<%=id%>/comments/${commentId}`,
+      method: 'GET',
+      success: function(response) {
+        response = response[0];
+        
+        let userDate = new Date(response.user_created_at);
+        userDate = userDate.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        let commentDate = new Date(response.comment_created_at);
+        commentDate = commentDate.toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        const comments =
+        `<div class="comment-wrapper d-flex">
+          <div class="user-wrapper">
+            ${response.user_profile_image ? '<img src="/users/'+response.user_profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}
+            <!-- 유저 정보 툴팁 -->
+            <div class="user-tooltip">
+              <div class="d-flex align-items-center mb-2">
+                <div class="profile-icon me-3">${response.user_profile_image ? '<img src="/users/'+response.user_profile_image+'" class="profile-img" alt="프로필 이미지">':'<img src="/user.svg" " class="profile-img"/>'}</div>
+                <div>
+                  <div class="fw-bold">${response.user_username}</div>
+                  <div class="text-muted">LV.0</div>
+                </div>
+              </div>
+              <div><strong>가입일: </strong>${userDate}</div>
+            </div>
+          </div>
+
+          <div class="comment-body ms-2">
+            <div class="info mb-1">
+              ${response.user_admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
+              <span user_id="${response.user_id}" ${response.user_admin ? 'style="color:red"' : ''}><b>${response.user_username}</b></span>
+              <span class="text-muted">${commentDate}</span>
+            </div>
+            <div class="commentRow">
+              <div class="content viewComment">${response.comment_content}</div>
+              <div class="dropdown position-absolute top-0 end-0">
+                <button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#000000" viewBox="0 0 24 24">
+                    <circle cx="12" cy="5" r="1.5"/>
+                    <circle cx="12" cy="12" r="1.5"/>
+                    <circle cx="12" cy="19" r="1.5"/>
+                  </svg>
+                </button>
+                <ul class="dropdown-menu">
+                  <li class="reportComment ${'<%=authStatus.username%>'==response.user_username ? 'none':''}"><a class="dropdown-item"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> 신고</a></li>
+                  <li class="editComment ${'<%=authStatus.username%>'==response.user_username ? '':'none'}"><a class="dropdown-item"><i class="fa fa-pencil" aria-hidden="true"></i> 수정</a></li>
+                  <li class="deleteComment ${'<%=authStatus.username%>'==response.user_username ? '':'none'}"><a class="dropdown-item"><i class="fa fa-trash" aria-hidden="true"></i> 삭제</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+        callback(comments);
+      },
+      error: function(xhr, status, error) {
+        console.log(xhr, status, error);
+        alert(xhr.responseText);
+      }
+    });
+  }
+
+  function loadComments() {
     $.ajax({
       url: '/boards/<%=id%>/comments',
       method: 'GET',
@@ -239,8 +318,18 @@
         let comments = '';
 
         response.forEach(item => {
-          const date = new Date(item.comment_created_at);
-          const formmatDate = date.toLocaleString('ko-KR', {
+          let userDate = new Date(item.user_created_at);
+          userDate = userDate.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+
+          let commentDate = new Date(item.comment_created_at);
+          commentDate = commentDate.toLocaleString('ko-KR', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
@@ -263,7 +352,7 @@
                       <div class="text-muted">LV.0</div>
                     </div>
                   </div>
-                  <div><strong>가입일: </strong>${formmatDate}</div>
+                  <div><strong>가입일: </strong>${userDate}</div>
                 </div>
               </div>
 
@@ -271,7 +360,8 @@
                 <div class="info mb-1">
                   ${item.user_admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
                   <span user_id="${item.user_id}" ${item.user_admin ? 'style="color:red"' : ''}><b>${item.user_username}</b></span>
-                  <span class="text-muted">${formmatDate}</span>
+                  <span class="text-muted">${commentDate}</span>
+                  <span class="text-muted">${item.comment_updated_at ? '수정됨':''}</span>
                 </div>
                 <div class="commentRow">
                   <div class="content viewComment">${item.comment_content}</div>
@@ -330,11 +420,17 @@
       }
     });
 
-    loadComment();
+    loadComments();
   });
 
   $(".btn.saveComment").click( function(){
-    let content = $(".writeComment > textarea").val();
+    const content = $(".new.writeComment > textarea").val();
+
+    if (!content) {
+      alert('내용을 입력해주세요.');
+      return;
+    }
+
     $.ajax({
       url: '/boards/<%=id%>/comments',
       method: 'POST',
@@ -346,7 +442,7 @@
         $(".writeComment > textarea").val("");
         $(".writeComment > textarea").height(35);
         $(".comments_total > span").text( parseInt($(".comments_total > span").text()) + 1 );
-        loadComment();
+        loadComments();
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
@@ -356,8 +452,14 @@
   });
 
   $(".comments").on("click", ".resaveComment", function() {
-    const id = $(this).closest(".comment").attr("id");
+    const commentElement = $(this).closest(".comment");
+    const id = commentElement.attr("id");
     const content = $(this).closest(".comment-body").find("textarea").val();
+
+    if (!content) {
+      alert('내용을 입력해주세요.');
+      return;
+    }
     
     $.ajax({
       url: `/boards/<%=id%>/comments/${id}`,
@@ -366,13 +468,23 @@
         content
       },
       success: function(response) {
-        console.log('tq')
-        loadComment();
+        loadCommentById(id, function(comments) {
+          commentElement.html(comments)
+        });
       },
       error: function(xhr, status, error) {
         console.log(xhr, status, error);
         alert("예기치 못한 에러가 발생 했습니다.");
       }
+    });
+  });
+
+  $(".comments").on("click", ".cancleComment", function() {
+    const commentElement = $(this).closest(".comment");
+    const id = commentElement.attr("id");
+    
+    loadCommentById(id, function(comments) {
+      commentElement.html(comments);
     });
   });
 
@@ -395,14 +507,10 @@
     }
   });
 
-  $(".comments").on("click", ".cancleComment", function() {
-    loadComment();
-  });
-
   $(".comments").on("click", ".editComment", function() {
     const commentElement = $(this).closest(".comment-body");
     commentElement.children(".commentRow").html(`
-    <div class="content writeComment">
+    <div class="content writeComment align-items-end">
       <textarea placeholder="댓글을 입력하세요">${commentElement.find(".content").text()}</textarea>
       <button class="btn btn-secondary cancleComment"><i class="fa fa-undo" aria-hidden="true"></i></button>
       <button class="btn btn-dark resaveComment"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>

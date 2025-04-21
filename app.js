@@ -424,8 +424,8 @@ app.get('/', (req, res) => {
       selectOptionsHtml += `<option value='${option}' ${selected}>${option} 줄</option>`;
     });
 
-    let total = parseInt(data[0]['total']);
-    let page_total = 0;
+    let total = parseInt(data?.[0]?.total) || 0;
+    let page_total = 1;
 
     if (data.length > 0) {
       page_total = Math.ceil(total / line);

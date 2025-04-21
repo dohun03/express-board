@@ -4,6 +4,19 @@
     page_search = `search=${search}&`;
   }
 %>
+<style>
+  @media (max-width: 768px) {
+    .info {
+      flex-direction: column;
+      align-items: flex-start !important;
+    }
+
+    .info .page-controls {
+      align-self: flex-end;
+      margin-top: 10px;
+    }
+  }
+</style>
 <div class="info d-flex align-items-center justify-content-between flex-wrap gap-2" style="width: 100%; margin-bottom: 10px;">
 
   <!-- 좌측: flex-grow로 너비 채움 -->
@@ -59,19 +72,6 @@
     </a>
   </div>
 </div>
-<style>
-  @media (max-width: 768px) {
-    .info {
-      flex-direction: column;
-      align-items: flex-start !important;
-    }
-
-    .info .page-controls {
-      align-self: flex-end;
-      margin-top: 10px;
-    }
-  }
-</style>
 <table class="table table-hover list" style="border: 1px solid #ccc;">
     <col><col style="width:20%;"><col style="width:10%;"><col style="width:8%;"><col style="width:8%;">
     <thead>

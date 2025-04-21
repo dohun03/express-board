@@ -2,6 +2,10 @@
   .container {
     padding: 0 !important;
   }
+  #board-content {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
   /* ==== 첨부파일 드롭다운 ==== */
   .dropdown > .dropdown-menu > .dropdown-item {
     max-width: 600px;
@@ -280,6 +284,7 @@
               ${response.user_admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
               <span user_id="${response.user_id}" ${response.user_admin ? 'style="color:red"' : ''}><b>${response.user_username}</b></span>
               <span class="text-muted">${commentDate}</span>
+              <span class="text-muted">${response.comment_updated_at ? '(수정됨)':''}</span>
             </div>
             <div class="commentRow">
               <div class="content viewComment">${response.comment_content}</div>
@@ -361,7 +366,7 @@
                   ${item.user_admin ? '<img src="/admin.svg" class="level-icon"/>' : ''}
                   <span user_id="${item.user_id}" ${item.user_admin ? 'style="color:red"' : ''}><b>${item.user_username}</b></span>
                   <span class="text-muted">${commentDate}</span>
-                  <span class="text-muted">${item.comment_updated_at ? '수정됨':''}</span>
+                  <span class="text-muted">${item.comment_updated_at ? '(수정됨)':''}</span>
                 </div>
                 <div class="commentRow">
                   <div class="content viewComment">${item.comment_content}</div>

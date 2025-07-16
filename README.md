@@ -132,7 +132,7 @@
 프로젝트 설치 및 실행
 ``` bash
 
-git clone https://github.com/dohun03/node-JS.git
+git clone https://github.com/dohun03/express-board.git
 
 cd your-project # 프로그램이 실행될 디렉토리로 이동
 
@@ -212,6 +212,81 @@ SESSION_PASS=redis password
 EMAIL_USER=your smtp email
 EMAIL_PASS=your email password
 ```
+
+## 📘 API 명세서
+
+> 인증이 필요한 API는 세션 로그인 상태에서만 요청할 수 있습니다.
+
+### 🔐 인증 API
+
+| 메서드  | URL            | 설명                 | 인증 |
+|--------|----------------|----------------------|------|
+| POST   | `/login`       | 로그인 (세션 저장)         | ❌   |
+| POST   | `/logout`      | 로그아웃 (세션 제거)       | ✅   |
+| POST   | `/users`       | 회원가입               | ❌   |
+| GET    | `/signup`      | 회원가입 페이지 렌더링      | ❌   |
+| GET    | `/login`       | 로그인 페이지 렌더링       | ❌   |
+| GET    | `/settings`    | 사용자 설정 페이지 조회     | ✅   |
+| GET    | `/admin`       | 관리자 페이지 조회         | ✅ (관리자만) |
+| PATCH  | `/users/:id/username` | 아이디 수정           | ✅   |
+| PATCH  | `/users/:id/password` | 비밀번호 수정         | ✅   |
+| DELETE | `/users/:id`   | 유저 삭제               | ✅ (관리자 또는 본인) |
+
+### 📧 이메일 인증
+
+| 메서드 | URL           | 설명              | 인증 |
+|--------|---------------|-------------------|------|
+| POST   | `/send-code`  | 인증번호 이메일 전송    | ❌   |
+
+### 📝 게시글 API
+
+| 메서드  | URL               | 설명                         | 인증 |
+|---------|-------------------|------------------------------|------|
+| GET     | `/`               | 게시글 목록 (검색, 필터, 페이지네이션 포함) | ❌   |
+| GET     | `/boards/:id`     | 게시글 상세 조회                  | ❌   |
+| POST    | `/boards`         | 게시글 작성                     | ✅   |
+| GET     | `/boards/:id/edit`| 게시글 수정 페이지 렌더링            | ✅ (본인만) |
+| PATCH   | `/boards/:id`     | 게시글 수정                     | ✅ (본인만) |
+| DELETE  | `/boards/:id`     | 게시글 삭제                     | ✅ (본인만) |
+
+### 💬 댓글 API
+
+| 메서드  | URL                                     | 설명                    | 인증 |
+|---------|------------------------------------------|-------------------------|------|
+| GET     | `/boards/:boardId/comments`             | 해당 게시글 댓글 전체 조회       | ❌   |
+| GET     | `/boards/:boardId/comments/:commentId`  | 특정 댓글 조회               | ❌   |
+| POST    | `/boards/:boardId/comments`             | 댓글 작성                  | ✅   |
+| PATCH   | `/boards/:boardId/comments/:commentId`  | 댓글 수정 (본인만 가능)        | ✅   |
+| DELETE  | `/boards/:boardId/comments/:commentId`  | 댓글 삭제 (본인만 가능)        | ✅   |
+
+### 👍 좋아요 API
+
+| 메서드  | URL               | 설명                    | 인증 |
+|---------|-------------------|-------------------------|------|
+| GET     | `/boards/:id/likes` | 좋아요 여부 및 총 개수 조회     | ✅   |
+| POST    | `/boards/:id/likes` | 좋아요 추가               | ✅   |
+| DELETE  | `/boards/:id/likes` | 좋아요 취소               | ✅   |
+
+### 📂 파일 업로드 API
+
+| 메서드  | URL             | 설명                          | 인증 |
+|---------|------------------|-------------------------------|------|
+| POST    | `/uploads`       | 게시글 첨부파일 업로드 (최대 5개, 25MB) | ✅   |
+| DELETE  | `/uploads`       | 게시글 첨부파일 삭제               | ✅   |
+| GET     | `/downloads/:filename` | 파일 다운로드                 | ❌   |
+
+### 🧑‍🎨 프로필 이미지 API
+
+| 메서드  | URL                  | 설명                         | 인증 |
+|---------|-----------------------|------------------------------|------|
+| POST    | `/uploads/profile`    | 프로필 이미지 업로드 (5MB 이하)   | ✅   |
+| DELETE  | `/uploads/profile`    | 프로필 이미지 삭제               | ✅   |
+
+### 🍪 쿠키 필터 설정 API
+
+| 메서드  | URL       | 설명                           | 인증 |
+|---------|------------|--------------------------------|------|
+| POST    | `/cookie`  | 목록 줄 수, 조회수/좋아요 정렬 쿠키 설정 | ❌   |
 
 ## [문제 해결]
 

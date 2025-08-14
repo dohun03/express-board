@@ -25,11 +25,12 @@
      - [2.3 게시글 삭제](#23-게시글-삭제)  
      - [2.4 게시글 목록 조회](#24-게시글-목록-조회)  
 2. [사용한 기술 스택](#사용한-기술-스택)  
-3. [ERD 데이터 모델링](#erd-데이터-모델링)  
-4. [설치 및 실행 방법](#설치-및-실행-방법)  
-5. [API 명세서](#api-명세서)  
-6. [문제 해결](#문제-해결)  
-7. [추가 구현하고 싶은 기능들](#추가-구현하고-싶은-기능들)  
+3. [ERD 데이터 모델링](#erd-데이터-모델링)
+4. [API 명세서](#api-명세서)
+5. [구현화면](#구현화면)  
+6. [설치 및 실행 방법](#설치-및-실행-방법)  
+7. [문제 해결](#문제-해결)  
+8. [추가 구현하고 싶은 기능들](#추가-구현하고-싶은-기능들)  
 
 ## [프로그램 주요 기능]
 
@@ -122,6 +123,110 @@
 
 <img src="https://github.com/user-attachments/assets/ce434c6d-83b0-4cce-aafd-1f40c7b07f42">
 
+## [API 명세서]
+
+> 인증이 필요한 API는 세션 로그인 상태에서만 요청할 수 있습니다.
+
+### 🔐 인증 API
+
+| 메서드  | URL            | 설명                 | 인증 |
+|--------|----------------|----------------------|------|
+| POST   | `/login`       | 로그인 (세션 저장)         | ❌   |
+| POST   | `/logout`      | 로그아웃 (세션 제거)       | ✅   |
+| POST   | `/users`       | 회원가입               | ❌   |
+| GET    | `/signup`      | 회원가입 페이지 렌더링      | ❌   |
+| GET    | `/login`       | 로그인 페이지 렌더링       | ❌   |
+| GET    | `/settings`    | 사용자 설정 페이지 조회     | ✅   |
+| GET    | `/admin`       | 관리자 페이지 조회         | ✅ (관리자만) |
+| PATCH  | `/users/:id/username` | 아이디 수정           | ✅   |
+| PATCH  | `/users/:id/password` | 비밀번호 수정         | ✅   |
+| DELETE | `/users/:id`   | 유저 삭제               | ✅ (관리자 또는 본인) |
+
+### 📧 이메일 인증
+
+| 메서드 | URL           | 설명              | 인증 |
+|--------|---------------|-------------------|------|
+| POST   | `/send-code`  | 인증번호 이메일 전송    | ❌   |
+
+### 📝 게시글 API
+
+| 메서드  | URL               | 설명                         | 인증 |
+|---------|-------------------|------------------------------|------|
+| GET     | `/`               | 게시글 목록 (검색, 필터, 페이지네이션 포함) | ❌   |
+| GET     | `/boards/:id`     | 게시글 상세 조회                  | ❌   |
+| POST    | `/boards`         | 게시글 작성                     | ✅   |
+| GET     | `/boards/:id/edit`| 게시글 수정 페이지 렌더링            | ✅ (본인만) |
+| PATCH   | `/boards/:id`     | 게시글 수정                     | ✅ (본인만) |
+| DELETE  | `/boards/:id`     | 게시글 삭제                     | ✅ (본인만) |
+
+### 💬 댓글 API
+
+| 메서드  | URL                                     | 설명                    | 인증 |
+|---------|------------------------------------------|-------------------------|------|
+| GET     | `/boards/:boardId/comments`             | 해당 게시글 댓글 전체 조회       | ❌   |
+| GET     | `/boards/:boardId/comments/:commentId`  | 특정 댓글 조회               | ❌   |
+| POST    | `/boards/:boardId/comments`             | 댓글 작성                  | ✅   |
+| PATCH   | `/boards/:boardId/comments/:commentId`  | 댓글 수정 (본인만 가능)        | ✅   |
+| DELETE  | `/boards/:boardId/comments/:commentId`  | 댓글 삭제 (본인만 가능)        | ✅   |
+
+### 👍 좋아요 API
+
+| 메서드  | URL               | 설명                    | 인증 |
+|---------|-------------------|-------------------------|------|
+| GET     | `/boards/:id/likes` | 좋아요 여부 및 총 개수 조회     | ✅   |
+| POST    | `/boards/:id/likes` | 좋아요 추가               | ✅   |
+| DELETE  | `/boards/:id/likes` | 좋아요 취소               | ✅   |
+
+### 📂 파일 업로드 API
+
+| 메서드  | URL             | 설명                          | 인증 |
+|---------|------------------|-------------------------------|------|
+| POST    | `/uploads`       | 게시글 첨부파일 업로드 (최대 5개, 25MB) | ✅   |
+| DELETE  | `/uploads`       | 게시글 첨부파일 삭제               | ✅   |
+| GET     | `/downloads/:filename` | 파일 다운로드                 | ❌   |
+
+### 🧑‍🎨 프로필 이미지 API
+
+| 메서드  | URL                  | 설명                         | 인증 |
+|---------|-----------------------|------------------------------|------|
+| POST    | `/uploads/profile`    | 프로필 이미지 업로드 (5MB 이하)   | ✅   |
+| DELETE  | `/uploads/profile`    | 프로필 이미지 삭제               | ✅   |
+
+### 🍪 쿠키 필터 설정 API
+
+| 메서드  | URL       | 설명                           | 인증 |
+|---------|------------|--------------------------------|------|
+| POST    | `/cookie`  | 목록 줄 수, 조회수/좋아요 정렬 쿠키 설정 | ❌   |
+
+## [구현화면]
+
+### 로그인 화면
+<img width="1647" height="1221" alt="Image" src="https://github.com/user-attachments/assets/59cc0ed0-3866-49ac-bce3-e570c8fa3099" />
+
+### 회원가입 화면
+<img width="1646" height="1216" alt="Image" src="https://github.com/user-attachments/assets/b3d3b237-6f5c-40bf-9799-a0bd3018df93" />
+
+### 인증번호 메일 화면
+<img width="575" height="287" alt="Image" src="https://github.com/user-attachments/assets/e97725a9-3ed6-4b86-ae95-71721b961095" />
+
+### 사용자 프로필 화면
+<img width="1648" height="1218" alt="Image" src="https://github.com/user-attachments/assets/d15d6ee1-834e-47fd-b1ee-2e0b5b1a759f" />
+
+### 사용자 보안설정 화면
+<img width="1647" height="1220" alt="Image" src="https://github.com/user-attachments/assets/7ad6a60f-a91c-4914-879b-b749502b314a" />
+
+### 관리자 화면
+<img width="1737" height="1005" alt="Image" src="https://github.com/user-attachments/assets/59390a70-9bb1-45d1-b44d-96f96dadbba1" />
+
+### 게시글 목록 화면
+<img width="2546" height="1223" alt="Image" src="https://github.com/user-attachments/assets/5e333b2f-740a-48cb-910f-a2ca0230c3d2" />
+
+### 게시글 작성 화면
+<img width="2536" height="1224" alt="Image" src="https://github.com/user-attachments/assets/e802f6b7-fb54-4c71-8d63-586278869fad" />
+
+### 게시글 뷰 화면
+<img width="2551" height="1230" alt="Image" src="https://github.com/user-attachments/assets/bbee8673-833d-44fc-aa4c-b47c9f92fa99" />
+
 ## [설치 및 실행 방법]
 
 실행 환경
@@ -212,81 +317,6 @@ SESSION_PASS=redis password
 EMAIL_USER=your smtp email
 EMAIL_PASS=your email password
 ```
-
-## [API 명세서]
-
-> 인증이 필요한 API는 세션 로그인 상태에서만 요청할 수 있습니다.
-
-### 🔐 인증 API
-
-| 메서드  | URL            | 설명                 | 인증 |
-|--------|----------------|----------------------|------|
-| POST   | `/login`       | 로그인 (세션 저장)         | ❌   |
-| POST   | `/logout`      | 로그아웃 (세션 제거)       | ✅   |
-| POST   | `/users`       | 회원가입               | ❌   |
-| GET    | `/signup`      | 회원가입 페이지 렌더링      | ❌   |
-| GET    | `/login`       | 로그인 페이지 렌더링       | ❌   |
-| GET    | `/settings`    | 사용자 설정 페이지 조회     | ✅   |
-| GET    | `/admin`       | 관리자 페이지 조회         | ✅ (관리자만) |
-| PATCH  | `/users/:id/username` | 아이디 수정           | ✅   |
-| PATCH  | `/users/:id/password` | 비밀번호 수정         | ✅   |
-| DELETE | `/users/:id`   | 유저 삭제               | ✅ (관리자 또는 본인) |
-
-### 📧 이메일 인증
-
-| 메서드 | URL           | 설명              | 인증 |
-|--------|---------------|-------------------|------|
-| POST   | `/send-code`  | 인증번호 이메일 전송    | ❌   |
-
-### 📝 게시글 API
-
-| 메서드  | URL               | 설명                         | 인증 |
-|---------|-------------------|------------------------------|------|
-| GET     | `/`               | 게시글 목록 (검색, 필터, 페이지네이션 포함) | ❌   |
-| GET     | `/boards/:id`     | 게시글 상세 조회                  | ❌   |
-| POST    | `/boards`         | 게시글 작성                     | ✅   |
-| GET     | `/boards/:id/edit`| 게시글 수정 페이지 렌더링            | ✅ (본인만) |
-| PATCH   | `/boards/:id`     | 게시글 수정                     | ✅ (본인만) |
-| DELETE  | `/boards/:id`     | 게시글 삭제                     | ✅ (본인만) |
-
-### 💬 댓글 API
-
-| 메서드  | URL                                     | 설명                    | 인증 |
-|---------|------------------------------------------|-------------------------|------|
-| GET     | `/boards/:boardId/comments`             | 해당 게시글 댓글 전체 조회       | ❌   |
-| GET     | `/boards/:boardId/comments/:commentId`  | 특정 댓글 조회               | ❌   |
-| POST    | `/boards/:boardId/comments`             | 댓글 작성                  | ✅   |
-| PATCH   | `/boards/:boardId/comments/:commentId`  | 댓글 수정 (본인만 가능)        | ✅   |
-| DELETE  | `/boards/:boardId/comments/:commentId`  | 댓글 삭제 (본인만 가능)        | ✅   |
-
-### 👍 좋아요 API
-
-| 메서드  | URL               | 설명                    | 인증 |
-|---------|-------------------|-------------------------|------|
-| GET     | `/boards/:id/likes` | 좋아요 여부 및 총 개수 조회     | ✅   |
-| POST    | `/boards/:id/likes` | 좋아요 추가               | ✅   |
-| DELETE  | `/boards/:id/likes` | 좋아요 취소               | ✅   |
-
-### 📂 파일 업로드 API
-
-| 메서드  | URL             | 설명                          | 인증 |
-|---------|------------------|-------------------------------|------|
-| POST    | `/uploads`       | 게시글 첨부파일 업로드 (최대 5개, 25MB) | ✅   |
-| DELETE  | `/uploads`       | 게시글 첨부파일 삭제               | ✅   |
-| GET     | `/downloads/:filename` | 파일 다운로드                 | ❌   |
-
-### 🧑‍🎨 프로필 이미지 API
-
-| 메서드  | URL                  | 설명                         | 인증 |
-|---------|-----------------------|------------------------------|------|
-| POST    | `/uploads/profile`    | 프로필 이미지 업로드 (5MB 이하)   | ✅   |
-| DELETE  | `/uploads/profile`    | 프로필 이미지 삭제               | ✅   |
-
-### 🍪 쿠키 필터 설정 API
-
-| 메서드  | URL       | 설명                           | 인증 |
-|---------|------------|--------------------------------|------|
-| POST    | `/cookie`  | 목록 줄 수, 조회수/좋아요 정렬 쿠키 설정 | ❌   |
 
 ## [문제 해결]
 

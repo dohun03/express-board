@@ -216,7 +216,7 @@
 <img width="1647" height="1220" alt="Image" src="https://github.com/user-attachments/assets/7ad6a60f-a91c-4914-879b-b749502b314a" />
 
 ### 관리자 화면
-<img width="1737" height="1005" alt="Image" src="https://github.com/user-attachments/assets/59390a70-9bb1-45d1-b44d-96f96dadbba1" />
+<img width="1737" height="1010" alt="Image" src="https://github.com/user-attachments/assets/153e3504-56aa-45c0-9ec4-9aa1f7d130f4" />
 
 ### 게시글 목록 화면
 <img width="2546" height="1223" alt="Image" src="https://github.com/user-attachments/assets/5e333b2f-740a-48cb-910f-a2ca0230c3d2" />
